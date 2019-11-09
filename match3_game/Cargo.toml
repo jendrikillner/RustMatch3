@@ -1,0 +1,8 @@
+[package]
+name = "match3_game"
+version = "0.1.0"
+authors = ["Jendrik Illner <jendrik.illner@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+winapi = { version = "0.3", features = ["winuser"] }
