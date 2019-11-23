@@ -10,11 +10,12 @@ fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
 }
 
 enum WindowMessages {
+    WindowCreated,
     WindowClosed,
 }
 
 struct Window {
-    hwnd: HWND,
+    message_receiver: std::sync::mpsc::Receiver<WindowMessages>,
 }
 
 static mut IS_WINDOW_CLOSED: bool = false;
@@ -35,68 +36,85 @@ unsafe extern "system" fn window_proc(
 }
 
 fn create_window() -> Result<Window, ()> {
-    unsafe {
-        let mut window_class_name: Vec<u16> =
-            OsStr::new("Match3WindowClass").encode_wide().collect();
+    let (channel_sender, channel_receiver) = std::sync::mpsc::channel();
 
-        window_class_name.push(0);
+    std::thread::spawn(move || {
+        unsafe {
+            let mut window_class_name: Vec<u16> =
+                OsStr::new("Match3WindowClass").encode_wide().collect();
 
-        let window_class = WNDCLASSW {
-            style: 0,
-            lpfnWndProc: Some(window_proc),
-            cbClsExtra: 0,
-            cbWndExtra: 0,
-            hInstance: 0 as HINSTANCE,
-            hIcon: 0 as HICON,
-            hCursor: 0 as HICON,
-            hbrBackground: 16 as HBRUSH,
-            lpszMenuName: 0 as LPCWSTR,
-            lpszClassName: window_class_name.as_ptr(),
-        };
+            window_class_name.push(0);
 
-        let error_code = RegisterClassW(&window_class);
+            let window_class = WNDCLASSW {
+                style: 0,
+                lpfnWndProc: Some(window_proc),
+                cbClsExtra: 0,
+                cbWndExtra: 0,
+                hInstance: 0 as HINSTANCE,
+                hIcon: 0 as HICON,
+                hCursor: 0 as HICON,
+                hbrBackground: 16 as HBRUSH,
+                lpszMenuName: 0 as LPCWSTR,
+                lpszClassName: window_class_name.as_ptr(),
+            };
 
-        assert!(error_code != 0, "failed to register the window class");
+            let error_code = RegisterClassW(&window_class);
 
-        let h_wnd_window = CreateWindowExW(
-            0,
-            window_class_name.as_ptr(),
-            0 as LPCWSTR,
-            WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
-            0,
-            0,
-            400,
-            400,
-            0 as HWND,
-            0 as HMENU,
-            0 as HINSTANCE,
-            std::ptr::null_mut(),
-        );
+            assert!(error_code != 0, "failed to register the window class");
 
-        assert!(h_wnd_window != (0 as HWND), "failed to open the window");
+            let h_wnd_window = CreateWindowExW(
+                0,
+                window_class_name.as_ptr(),
+                0 as LPCWSTR,
+                WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
+                0,
+                0,
+                400,
+                400,
+                0 as HWND,
+                0 as HMENU,
+                0 as HINSTANCE,
+                std::ptr::null_mut(),
+            );
 
-        ShowWindow(h_wnd_window, SW_SHOW);
+            assert!(h_wnd_window != (0 as HWND), "failed to open the window");
 
-        Ok(Window { hwnd: h_wnd_window })
+            ShowWindow(h_wnd_window, SW_SHOW);
+
+            channel_sender.send(WindowMessages::WindowCreated).unwrap();
+
+            let mut msg: MSG = std::mem::zeroed();
+
+            // process messages
+            while !IS_WINDOW_CLOSED {
+                if PeekMessageA(&mut msg, h_wnd_window, 0, 0, PM_REMOVE) > 0 {
+                    TranslateMessage(&msg);
+                    DispatchMessageA(&msg);
+
+                    if IS_WINDOW_CLOSED {
+                        channel_sender.send(WindowMessages::WindowClosed).unwrap();
+                    }
+                }
+            }
+        }
+    });
+
+    // wait for window created before returning
+    if let WindowMessages::WindowCreated = channel_receiver.recv().unwrap() {
+        return Ok(Window {
+            message_receiver: channel_receiver,
+        });
     }
+
+    Err(())
 }
 
 fn process_window_messages(window: &Window) -> Option<WindowMessages> {
-    unsafe {
-        let mut msg: MSG = std::mem::zeroed();
-
-        // process messages
-        while PeekMessageA(&mut msg, window.hwnd, 0, 0, PM_REMOVE) > 0 {
-            TranslateMessage(&msg);
-            DispatchMessageA(&msg);
-
-            if IS_WINDOW_CLOSED {
-                return Some(WindowMessages::WindowClosed);
-            }
-        }
-
-        None
+    if let Ok(x) = window.message_receiver.try_recv() {
+        return Some(x);
     }
+
+    None
 }
 
 fn main() {
@@ -120,6 +138,9 @@ fn main() {
                 WindowMessages::WindowClosed => {
                     should_game_close = true;
                 }
+                WindowMessages::WindowCreated => {
+                    panic!();
+                } // this should never happen
             }
         }
 
