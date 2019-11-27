@@ -23,8 +23,6 @@ struct WindowThreadState {
     is_window_closed : bool
 }
 
-static mut IS_WINDOW_CLOSED: bool = false;
-
 unsafe extern "system" fn window_proc(
     h_wnd: HWND,    
     msg: UINT,
@@ -42,7 +40,6 @@ unsafe extern "system" fn window_proc(
         // the state we can store inside the user data parameter of the window
         SetWindowLongPtrW(h_wnd, GWLP_USERDATA, windowState as isize );
 
-        windowState.as_mut().unwrap().is_window_closed = false;
         windowState.as_mut().unwrap().message_sender.send(WindowMessages::WindowCreated).unwrap();
     }
 
@@ -65,7 +62,7 @@ fn create_window() -> Result<Window, ()> {
 
         let mut window_state = WindowThreadState { 
             message_sender : channel_sender, 
-            is_window_closed : true 
+            is_window_closed : false 
             };
 
         unsafe {
@@ -115,14 +112,10 @@ fn create_window() -> Result<Window, ()> {
             let mut msg: MSG = std::mem::zeroed();
 
             // process messages
-            while !IS_WINDOW_CLOSED {
+            while !window_state.is_window_closed {
                 if PeekMessageA(&mut msg, h_wnd_window, 0, 0, PM_REMOVE) > 0 {
                     TranslateMessage(&msg);
                     DispatchMessageA(&msg);
-
-                    // if IS_WINDOW_CLOSED {
-                    //    channel_sender.send(WindowMessages::WindowClosed).unwrap();
-                    // }
                 }
             }
         }
