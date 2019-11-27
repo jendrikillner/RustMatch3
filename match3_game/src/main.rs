@@ -114,8 +114,6 @@ fn create_window() -> Result<Window, ()> {
 
             ShowWindow(h_wnd_window, SW_SHOW);
 
-            // channel_sender.send(WindowMessages::WindowCreated).unwrap();
-
             let mut msg: MSG = std::mem::zeroed();
 
             // process messages
