@@ -32,22 +32,24 @@ unsafe extern "system" fn window_proc(
 
     if msg == WM_CREATE {
         // retrieve the message struct that contains the creation parameters
-        let pCreate = l_param as * mut winapi::um::winuser::CREATESTRUCTW;
+        let create_struct = l_param as * mut winapi::um::winuser::CREATESTRUCTW;
     
         // retrieve the rust window state
-        let windowState = pCreate.as_ref().unwrap().lpCreateParams as * mut WindowThreadState;
+        let window_state_ptr = create_struct.as_ref().unwrap().lpCreateParams as * mut WindowThreadState;
+        let window_state : & mut WindowThreadState = window_state_ptr.as_mut().unwrap();
 
         // the state we can store inside the user data parameter of the window
-        SetWindowLongPtrW(h_wnd, GWLP_USERDATA, windowState as isize );
+        SetWindowLongPtrW(h_wnd, GWLP_USERDATA, window_state_ptr as isize );
 
-        windowState.as_mut().unwrap().message_sender.send(WindowMessages::WindowCreated).unwrap();
+        window_state.message_sender.send(WindowMessages::WindowCreated).unwrap();
     }
 
-    let windowState = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as * mut WindowThreadState;
-
     if msg == WM_DESTROY {
-        windowState.as_mut().unwrap().message_sender.send(WindowMessages::WindowClosed).unwrap();
-        windowState.as_mut().unwrap().is_window_closed = true;
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as * mut WindowThreadState;
+        let window_state : & mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        window_state.message_sender.send(WindowMessages::WindowClosed).unwrap();
+        window_state.is_window_closed = true;
 
         PostQuitMessage(0);
     }
