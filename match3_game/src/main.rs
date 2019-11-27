@@ -114,6 +114,7 @@ fn create_window() -> Result<Window, ()> {
             let mut msg: MSG = std::mem::zeroed();
 
             // process messages
+            #[allow(clippy::while_immutable_condition)] 
             while !window_state.is_window_closed {
                 if PeekMessageA(&mut msg, h_wnd_window, 0, 0, PM_REMOVE) > 0 {
                     TranslateMessage(&msg);
