@@ -18,7 +18,10 @@ struct Window {
     message_receiver: std::sync::mpsc::Receiver<WindowMessages>,
 }
 
-static mut IS_WINDOW_CLOSED: bool = false;
+struct WindowThreadState {
+    message_sender: std::sync::mpsc::Sender<WindowMessages>,
+    is_window_closed: bool,
+}
 
 unsafe extern "system" fn window_proc(
     h_wnd: HWND,
@@ -26,8 +29,33 @@ unsafe extern "system" fn window_proc(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
+    if msg == WM_CREATE {
+        // retrieve the message struct that contains the creation parameters
+        let create_struct = l_param as *mut winapi::um::winuser::CREATESTRUCTW;
+
+        // retrieve the rust window state
+        let window_state_ptr =
+            create_struct.as_ref().unwrap().lpCreateParams as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        // the state we can store inside the user data parameter of the window
+        SetWindowLongPtrW(h_wnd, GWLP_USERDATA, window_state_ptr as isize);
+
+        window_state
+            .message_sender
+            .send(WindowMessages::WindowCreated)
+            .unwrap();
+    }
+
     if msg == WM_DESTROY {
-        IS_WINDOW_CLOSED = true;
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        window_state
+            .message_sender
+            .send(WindowMessages::WindowClosed)
+            .unwrap();
+        window_state.is_window_closed = true;
 
         PostQuitMessage(0);
     }
@@ -39,6 +67,11 @@ fn create_window() -> Result<Window, ()> {
     let (channel_sender, channel_receiver) = std::sync::mpsc::channel();
 
     std::thread::spawn(move || {
+        let mut window_state = WindowThreadState {
+            message_sender: channel_sender,
+            is_window_closed: false,
+        };
+
         unsafe {
             let mut window_class_name: Vec<u16> =
                 OsStr::new("Match3WindowClass").encode_wide().collect();
@@ -74,26 +107,21 @@ fn create_window() -> Result<Window, ()> {
                 0 as HWND,
                 0 as HMENU,
                 0 as HINSTANCE,
-                std::ptr::null_mut(),
+                &mut window_state as *mut WindowThreadState as *mut winapi::ctypes::c_void, // pass a mutable pointer to the window
             );
 
             assert!(h_wnd_window != (0 as HWND), "failed to open the window");
 
             ShowWindow(h_wnd_window, SW_SHOW);
 
-            channel_sender.send(WindowMessages::WindowCreated).unwrap();
-
             let mut msg: MSG = std::mem::zeroed();
 
             // process messages
-            while !IS_WINDOW_CLOSED {
+            #[allow(clippy::while_immutable_condition)]
+            while !window_state.is_window_closed {
                 if PeekMessageA(&mut msg, h_wnd_window, 0, 0, PM_REMOVE) > 0 {
                     TranslateMessage(&msg);
                     DispatchMessageA(&msg);
-
-                    if IS_WINDOW_CLOSED {
-                        channel_sender.send(WindowMessages::WindowClosed).unwrap();
-                    }
                 }
             }
         }
