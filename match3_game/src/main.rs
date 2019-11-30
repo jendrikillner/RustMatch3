@@ -20,7 +20,6 @@ struct Window {
 
 struct WindowThreadState {
     message_sender: std::sync::mpsc::Sender<WindowMessages>,
-    is_window_closed: bool,
 }
 
 unsafe extern "system" fn window_proc(
@@ -55,7 +54,6 @@ unsafe extern "system" fn window_proc(
             .message_sender
             .send(WindowMessages::WindowClosed)
             .unwrap();
-        window_state.is_window_closed = true;
 
         PostQuitMessage(0);
     }
@@ -69,7 +67,6 @@ fn create_window() -> Result<Window, ()> {
     std::thread::spawn(move || {
         let mut window_state = WindowThreadState {
             message_sender: channel_sender,
-            is_window_closed: false,
         };
 
         unsafe {
@@ -117,11 +114,15 @@ fn create_window() -> Result<Window, ()> {
             let mut msg: MSG = std::mem::zeroed();
 
             // process messages
-            #[allow(clippy::while_immutable_condition)]
-            while !window_state.is_window_closed {
+            loop {
                 if PeekMessageA(&mut msg, h_wnd_window, 0, 0, PM_REMOVE) > 0 {
                     TranslateMessage(&msg);
                     DispatchMessageA(&msg);
+
+                    // once the window has been closed we can exit the message loop
+                    if msg.message == WM_QUIT {
+                        break;
+                    }
                 }
             }
         }
