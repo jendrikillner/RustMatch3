@@ -5,4 +5,4 @@ authors = ["Jendrik Illner <jendrik.illner@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-winapi = { version = "0.3", features = ["winuser"] }
+winapi = { version = "0.3", features = ["winuser", "d3d11", "winerror", "dxgi1_2"] }

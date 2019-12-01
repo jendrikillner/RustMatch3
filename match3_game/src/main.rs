@@ -1,21 +1,36 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use winapi::shared::dxgi::*;
+use winapi::shared::dxgi1_2::*;
+use winapi::shared::dxgiformat::*;
+use winapi::shared::dxgitype::*;
 use winapi::shared::minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM};
+use winapi::shared::ntdef::HRESULT;
 use winapi::shared::ntdef::LPCWSTR;
 use winapi::shared::windef::{HBRUSH, HICON, HMENU, HWND};
+use winapi::um::d3d11::*;
+use winapi::um::d3dcommon::*;
 use winapi::um::winuser::*;
+use winapi::Interface;
 
 fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
     (dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000.0) as f32
 }
 
+struct WindowCreatedData {
+    hwnd: HWND,
+}
+
+unsafe impl std::marker::Send for WindowCreatedData {}
+
 enum WindowMessages {
-    WindowCreated,
+    WindowCreated(WindowCreatedData),
     WindowClosed,
 }
 
 struct Window {
     message_receiver: std::sync::mpsc::Receiver<WindowMessages>,
+    hwnd: HWND,
 }
 
 struct WindowThreadState {
@@ -42,7 +57,9 @@ unsafe extern "system" fn window_proc(
 
         window_state
             .message_sender
-            .send(WindowMessages::WindowCreated)
+            .send(WindowMessages::WindowCreated(WindowCreatedData {
+                hwnd: h_wnd,
+            }))
             .unwrap();
     }
 
@@ -129,9 +146,10 @@ fn create_window() -> Result<Window, ()> {
     });
 
     // wait for window created before returning
-    if let WindowMessages::WindowCreated = channel_receiver.recv().unwrap() {
+    if let WindowMessages::WindowCreated(x) = channel_receiver.recv().unwrap() {
         return Ok(Window {
             message_receiver: channel_receiver,
+            hwnd: x.hwnd,
         });
     }
 
@@ -146,11 +164,133 @@ fn process_window_messages(window: &Window) -> Option<WindowMessages> {
     None
 }
 
+struct GraphicsDeviceLayer {
+    device: *mut ID3D11Device,
+    context: *mut ID3D11DeviceContext,
+    swapchain: *mut IDXGISwapChain1,
+}
+
+fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
+    unsafe {
+        // use default adapter
+        let adapter: *mut IDXGIAdapter = std::ptr::null_mut();
+        let flags: UINT = 0;
+
+        let feature_levels: D3D_FEATURE_LEVEL = D3D_FEATURE_LEVEL_11_0;
+        let num_feature_levels: UINT = 1;
+
+        let mut d3d11_device: *mut ID3D11Device = std::ptr::null_mut();
+        let mut d3d11_immediate_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
+
+        let result: HRESULT = D3D11CreateDevice(
+            adapter,
+            D3D_DRIVER_TYPE_HARDWARE,
+            std::ptr::null_mut(),
+            flags,
+            &feature_levels,
+            num_feature_levels,
+            D3D11_SDK_VERSION,
+            &mut d3d11_device,
+            std::ptr::null_mut(),
+            &mut d3d11_immediate_context,
+        );
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "d3d11 device creation failed"
+        );
+
+        let mut dxgi_device: *mut IDXGIDevice = std::ptr::null_mut();
+
+        // get dxgi device
+        let result = d3d11_device.as_ref().unwrap().QueryInterface(
+            &IDXGIDevice::uuidof(),
+            &mut dxgi_device as *mut *mut IDXGIDevice as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "QueryInterface failed"
+        );
+
+        let mut dxgi_adapter: *mut IDXGIAdapter = std::ptr::null_mut();
+        let result = dxgi_device.as_ref().unwrap().GetAdapter(&mut dxgi_adapter);
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "GetAdapter failed"
+        );
+
+        let mut dxgi_factory: *mut IDXGIFactory1 = std::ptr::null_mut();
+
+        let result = dxgi_adapter.as_ref().unwrap().GetParent(
+            &IDXGIFactory1::uuidof(),
+            &mut dxgi_factory as *mut *mut IDXGIFactory1 as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(result == winapi::shared::winerror::S_OK, "GetParent failed");
+
+        let mut dxgi_factory_2: *mut IDXGIFactory2 = std::ptr::null_mut();
+
+        let result = dxgi_factory.as_ref().unwrap().QueryInterface(
+            &IDXGIFactory2::uuidof(),
+            &mut dxgi_factory_2 as *mut *mut IDXGIFactory2 as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "dxgi_factory QueryInterface failed"
+        );
+
+        let sd = DXGI_SWAP_CHAIN_DESC1 {
+            Width: 0,
+            Height: 0,
+            Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+            SampleDesc: DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            BufferCount: 2,
+            AlphaMode: DXGI_ALPHA_MODE_UNSPECIFIED,
+            Flags: 0,
+            Scaling: DXGI_SCALING_STRETCH,
+            SwapEffect: DXGI_SWAP_EFFECT_DISCARD,
+            Stereo: 0,
+        };
+
+        let mut swapchain: *mut IDXGISwapChain1 = std::ptr::null_mut();
+
+        let result = dxgi_factory_2.as_ref().unwrap().CreateSwapChainForHwnd(
+            d3d11_device as *mut winapi::um::unknwnbase::IUnknown,
+            hwnd,
+            &sd,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut swapchain,
+        );
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "CreateSwapChainForHwnd failed"
+        );
+
+        Ok(GraphicsDeviceLayer {
+            device: d3d11_device,
+            context: d3d11_immediate_context,
+            swapchain,
+        })
+    }
+}
+
 fn main() {
     let mut should_game_close = false;
 
     // afterwards open a window we can render into
-    let _main_window: Window = create_window().unwrap();
+    let main_window: Window = create_window().unwrap();
+
+    let graphics_layer: GraphicsDeviceLayer =
+        create_device_graphics_layer(main_window.hwnd).unwrap();
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
@@ -162,12 +302,12 @@ fn main() {
     while !should_game_close {
         let new_time = std::time::Instant::now();
 
-        while let Some(x) = process_window_messages(&_main_window) {
+        while let Some(x) = process_window_messages(&main_window) {
             match x {
                 WindowMessages::WindowClosed => {
                     should_game_close = true;
                 }
-                WindowMessages::WindowCreated => {
+                WindowMessages::WindowCreated(_x) => {
                     panic!();
                 } // this should never happen
             }
@@ -205,6 +345,16 @@ fn main() {
             draw_frame_number, subframe_blend
         );
 
+        unsafe {
+            graphics_layer.swapchain.as_ref().unwrap().Present(1, 0);
+        }
+
         draw_frame_number += 1;
+    }
+
+    unsafe {
+        graphics_layer.context.as_ref().unwrap().Release();
+        graphics_layer.swapchain.as_ref().unwrap().Release();
+        graphics_layer.device.as_ref().unwrap().Release();
     }
 }
