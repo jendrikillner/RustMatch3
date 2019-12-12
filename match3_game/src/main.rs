@@ -168,6 +168,8 @@ struct GraphicsDeviceLayer {
     device: *mut ID3D11Device,
     context: *mut ID3D11DeviceContext,
     swapchain: *mut IDXGISwapChain1,
+    backbuffer_rtv: *mut ID3D11RenderTargetView,
+    backbuffer_texture: *mut ID3D11Texture2D,
 }
 
 fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
@@ -275,10 +277,29 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
             "CreateSwapChainForHwnd failed"
         );
 
+        let mut backbuffer_texture: *mut ID3D11Texture2D = std::ptr::null_mut();
+        swapchain.as_ref().unwrap().GetBuffer(
+            0,
+            &ID3D11Texture2D::uuidof(),
+            &mut backbuffer_texture as *mut *mut ID3D11Texture2D
+                as *mut *mut winapi::ctypes::c_void,
+        );
+
+        let mut backbuffer_rtv: *mut ID3D11RenderTargetView = std::ptr::null_mut();
+
+        // now create a render target view onto the texture
+        d3d11_device.as_ref().unwrap().CreateRenderTargetView(
+            backbuffer_texture as *mut winapi::um::d3d11::ID3D11Resource,
+            std::ptr::null_mut(),
+            &mut backbuffer_rtv,
+        );
+
         Ok(GraphicsDeviceLayer {
             device: d3d11_device,
             context: d3d11_immediate_context,
             swapchain,
+            backbuffer_texture,
+            backbuffer_rtv,
         })
     }
 }
@@ -345,6 +366,14 @@ fn main() {
             draw_frame_number, subframe_blend
         );
 
+        let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
+        unsafe {
+            graphics_layer.context
+                .as_ref()
+                .unwrap()
+                .ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
+        }
+
         unsafe {
             graphics_layer.swapchain.as_ref().unwrap().Present(1, 0);
         }
@@ -353,6 +382,9 @@ fn main() {
     }
 
     unsafe {
+        graphics_layer.backbuffer_rtv.as_ref().unwrap().Release();
+        graphics_layer.backbuffer_texture.as_ref().unwrap().Release();
+
         graphics_layer.context.as_ref().unwrap().Release();
         graphics_layer.swapchain.as_ref().unwrap().Release();
         graphics_layer.device.as_ref().unwrap().Release();
