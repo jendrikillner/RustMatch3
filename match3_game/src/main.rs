@@ -166,7 +166,7 @@ fn process_window_messages(window: &Window) -> Option<WindowMessages> {
 
 struct GraphicsDeviceLayer {
     device: *mut ID3D11Device,
-    context: *mut ID3D11DeviceContext,
+    immediate_context: *mut ID3D11DeviceContext,
     swapchain: *mut IDXGISwapChain1,
     backbuffer_rtv: *mut ID3D11RenderTargetView,
     backbuffer_texture: *mut ID3D11Texture2D,
@@ -296,7 +296,7 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
 
         Ok(GraphicsDeviceLayer {
             device: d3d11_device,
-            context: d3d11_immediate_context,
+            immediate_context: d3d11_immediate_context,
             swapchain,
             backbuffer_texture,
             backbuffer_rtv,
@@ -368,7 +368,7 @@ fn main() {
 
         let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
         unsafe {
-            graphics_layer.context
+            graphics_layer.immediate_context
                 .as_ref()
                 .unwrap()
                 .ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
@@ -385,7 +385,7 @@ fn main() {
         graphics_layer.backbuffer_rtv.as_ref().unwrap().Release();
         graphics_layer.backbuffer_texture.as_ref().unwrap().Release();
 
-        graphics_layer.context.as_ref().unwrap().Release();
+        graphics_layer.immediate_context.as_ref().unwrap().Release();
         graphics_layer.swapchain.as_ref().unwrap().Release();
         graphics_layer.device.as_ref().unwrap().Release();
     }
