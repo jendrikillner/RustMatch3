@@ -166,8 +166,14 @@ fn process_window_messages(window: &Window) -> Option<WindowMessages> {
 
 struct GraphicsDeviceLayer {
     device: *mut ID3D11Device,
-    context: *mut ID3D11DeviceContext,
+    immediate_context: *mut ID3D11DeviceContext,
     swapchain: *mut IDXGISwapChain1,
+    backbuffer_rtv: *mut ID3D11RenderTargetView,
+    backbuffer_texture: *mut ID3D11Texture2D,
+
+    vertex_shader: *mut ID3D11VertexShader,
+    pixel_shader: *mut ID3D11PixelShader,
+    command_context: *mut ID3D11DeviceContext,
 }
 
 fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
@@ -275,10 +281,68 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
             "CreateSwapChainForHwnd failed"
         );
 
+        let mut backbuffer_texture: *mut ID3D11Texture2D = std::ptr::null_mut();
+        swapchain.as_ref().unwrap().GetBuffer(
+            0,
+            &ID3D11Texture2D::uuidof(),
+            &mut backbuffer_texture as *mut *mut ID3D11Texture2D
+                as *mut *mut winapi::ctypes::c_void,
+        );
+
+        let mut backbuffer_rtv: *mut ID3D11RenderTargetView = std::ptr::null_mut();
+
+        // now create a render target view onto the texture
+        d3d11_device.as_ref().unwrap().CreateRenderTargetView(
+            backbuffer_texture as *mut winapi::um::d3d11::ID3D11Resource,
+            std::ptr::null_mut(),
+            &mut backbuffer_rtv,
+        );
+
+        let mut command_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
+
+        let error = d3d11_device
+            .as_ref()
+            .unwrap()
+            .CreateDeferredContext(0, &mut command_context);
+
+        assert!(error == winapi::shared::winerror::S_OK);
+
+        let mut vertex_shader: *mut ID3D11VertexShader = std::ptr::null_mut();
+        let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
+
+        // load a shader
+        let vertex_shader_memory =
+            std::fs::read("target_data/shaders/screen_space_quad.vsb").unwrap();
+        let pixel_shader_memory =
+            std::fs::read("target_data/shaders/screen_space_quad.psb").unwrap();
+
+        let error: HRESULT = d3d11_device.as_ref().unwrap().CreateVertexShader(
+            vertex_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
+            vertex_shader_memory.len(),
+            std::ptr::null_mut(),
+            &mut vertex_shader as *mut *mut ID3D11VertexShader,
+        );
+
+        assert!(error == winapi::shared::winerror::S_OK);
+
+        let error: HRESULT = d3d11_device.as_ref().unwrap().CreatePixelShader(
+            pixel_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
+            pixel_shader_memory.len(),
+            std::ptr::null_mut(),
+            &mut pixel_shader as *mut *mut ID3D11PixelShader,
+        );
+
+        assert!(error == winapi::shared::winerror::S_OK);
+
         Ok(GraphicsDeviceLayer {
             device: d3d11_device,
-            context: d3d11_immediate_context,
+            immediate_context: d3d11_immediate_context,
             swapchain,
+            backbuffer_texture,
+            backbuffer_rtv,
+            vertex_shader,
+            pixel_shader,
+            command_context,
         })
     }
 }
@@ -345,6 +409,53 @@ fn main() {
             draw_frame_number, subframe_blend
         );
 
+        let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
+        unsafe {
+            let command_context = graphics_layer.command_context.as_ref().unwrap();
+
+            command_context.ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
+
+            let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
+                Height: 400.0,
+                Width: 400.0,
+                MinDepth: 0.0,
+                MaxDepth: 1.0,
+                TopLeftX: 0.0,
+                TopLeftY: 0.0,
+            };
+
+            // set viewport for the output window
+            command_context.RSSetViewports(1, &viewport);
+
+            // bind backbuffer as render target
+            let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] =
+                [graphics_layer.backbuffer_rtv];
+            command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
+
+            // bind the shaders
+            command_context.VSSetShader(graphics_layer.vertex_shader, std::ptr::null_mut(), 0);
+            command_context.PSSetShader(graphics_layer.pixel_shader, std::ptr::null_mut(), 0);
+
+            // we are drawing 4 vertices using a triangle strip topology
+            command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            command_context.Draw(4, 0);
+
+            let mut command_list: *mut ID3D11CommandList = std::ptr::null_mut();
+
+            let result = command_context.FinishCommandList(0, &mut command_list);
+
+            assert!(result == winapi::shared::winerror::S_OK);
+
+            graphics_layer
+                .immediate_context
+                .as_ref()
+                .unwrap()
+                .ExecuteCommandList(command_list, 1);
+
+            // once the command list is executed, we can release it
+            command_list.as_ref().unwrap().Release();
+        }
+
         unsafe {
             graphics_layer.swapchain.as_ref().unwrap().Present(1, 0);
         }
@@ -353,7 +464,14 @@ fn main() {
     }
 
     unsafe {
-        graphics_layer.context.as_ref().unwrap().Release();
+        graphics_layer.backbuffer_rtv.as_ref().unwrap().Release();
+        graphics_layer
+            .backbuffer_texture
+            .as_ref()
+            .unwrap()
+            .Release();
+
+        graphics_layer.immediate_context.as_ref().unwrap().Release();
         graphics_layer.swapchain.as_ref().unwrap().Release();
         graphics_layer.device.as_ref().unwrap().Release();
     }
