@@ -173,7 +173,7 @@ struct GraphicsDeviceLayer {
 
     vertex_shader: *mut ID3D11VertexShader,
     pixel_shader: *mut ID3D11PixelShader,
-    command_context : *mut ID3D11DeviceContext,
+    command_context: *mut ID3D11DeviceContext,
 }
 
 fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
@@ -300,7 +300,10 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
 
         let mut command_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
 
-        let error = d3d11_device.as_ref().unwrap().CreateDeferredContext(0, &mut command_context);
+        let error = d3d11_device
+            .as_ref()
+            .unwrap()
+            .CreateDeferredContext(0, &mut command_context);
 
         assert!(error == winapi::shared::winerror::S_OK);
 
@@ -308,8 +311,10 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
         let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
 
         // load a shader
-        let vertex_shader_memory = std::fs::read("target_data/shaders/screen_space_quad.vsb").unwrap();
-        let pixel_shader_memory  = std::fs::read("target_data/shaders/screen_space_quad.psb").unwrap();
+        let vertex_shader_memory =
+            std::fs::read("target_data/shaders/screen_space_quad.vsb").unwrap();
+        let pixel_shader_memory =
+            std::fs::read("target_data/shaders/screen_space_quad.psb").unwrap();
 
         let error: HRESULT = d3d11_device.as_ref().unwrap().CreateVertexShader(
             vertex_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
@@ -337,7 +342,7 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
             backbuffer_rtv,
             vertex_shader,
             pixel_shader,
-            command_context
+            command_context,
         })
     }
 }
@@ -406,10 +411,7 @@ fn main() {
 
         let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
         unsafe {
-
-            let command_context = graphics_layer.command_context
-            .as_ref()
-            .unwrap();
+            let command_context = graphics_layer.command_context.as_ref().unwrap();
 
             command_context.ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
 
@@ -426,8 +428,9 @@ fn main() {
             command_context.RSSetViewports(1, &viewport);
 
             // bind backbuffer as render target
-            let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [graphics_layer.backbuffer_rtv];
-            command_context.OMSetRenderTargets( 1, rtvs.as_ptr(), std::ptr::null_mut() );
+            let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] =
+                [graphics_layer.backbuffer_rtv];
+            command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
 
             // bind the shaders
             command_context.VSSetShader(graphics_layer.vertex_shader, std::ptr::null_mut(), 0);
@@ -439,14 +442,14 @@ fn main() {
 
             let mut command_list: *mut ID3D11CommandList = std::ptr::null_mut();
 
-            let result = command_context
-                .FinishCommandList(0, &mut command_list);
+            let result = command_context.FinishCommandList(0, &mut command_list);
 
             assert!(result == winapi::shared::winerror::S_OK);
 
             graphics_layer
                 .immediate_context
-                .as_ref().unwrap()
+                .as_ref()
+                .unwrap()
                 .ExecuteCommandList(command_list, 1);
 
             // once the command list is executed, we can release it
@@ -462,7 +465,11 @@ fn main() {
 
     unsafe {
         graphics_layer.backbuffer_rtv.as_ref().unwrap().Release();
-        graphics_layer.backbuffer_texture.as_ref().unwrap().Release();
+        graphics_layer
+            .backbuffer_texture
+            .as_ref()
+            .unwrap()
+            .Release();
 
         graphics_layer.immediate_context.as_ref().unwrap().Release();
         graphics_layer.swapchain.as_ref().unwrap().Release();
