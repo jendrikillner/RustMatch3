@@ -9,6 +9,7 @@ use winapi::shared::ntdef::HRESULT;
 use winapi::shared::ntdef::LPCWSTR;
 use winapi::shared::windef::{HBRUSH, HICON, HMENU, HWND};
 use winapi::um::d3d11::*;
+use winapi::um::d3d11_1::*;
 use winapi::um::d3dcommon::*;
 use winapi::um::winuser::*;
 use winapi::Interface;
@@ -164,6 +165,169 @@ fn process_window_messages(window: &Window) -> Option<WindowMessages> {
     None
 }
 
+#[repr(C)]
+struct Float3 {
+    x: f32,
+    y: f32,
+    z: f32,
+}
+
+#[repr(C)]
+struct Float2 {
+    x: f32,
+    y: f32,
+}
+
+#[repr(C)]
+struct ScreenSpaceQuadData {
+    color: Float3,
+    padding: f32,
+    scale: Float2,
+    position: Float2,
+}
+
+pub struct MappedGpuData<'a> {
+    data: &'a [u8],               // reference to slice of cpu accessible gpu memory
+    buffer: &'a mut ID3D11Buffer, // reference to the d3d11 buffer the data comes from
+}
+
+fn map_gpu_buffer<'a>(
+    buffer: &'a mut ID3D11Buffer,
+    context: &ID3D11DeviceContext,
+) -> MappedGpuData<'a> {
+    let mut mapped_resource = D3D11_MAPPED_SUBRESOURCE {
+        pData: std::ptr::null_mut(),
+        RowPitch: 0,
+        DepthPitch: 0,
+    };
+
+    // map the buffer
+    let result: HRESULT = unsafe {
+        context.Map(
+            buffer as *mut ID3D11Buffer as *mut winapi::um::d3d11::ID3D11Resource,
+            0,
+            D3D11_MAP_WRITE_NO_OVERWRITE,
+            0,
+            &mut mapped_resource,
+        )
+    };
+
+    assert!(result == winapi::shared::winerror::S_OK);
+
+    MappedGpuData {
+        data: unsafe {
+            std::slice::from_raw_parts_mut(
+                mapped_resource.pData as *mut u8,
+                mapped_resource.RowPitch as usize,
+            )
+        },
+        buffer,
+    }
+}
+
+fn unmap_gpu_buffer(mapped_data: MappedGpuData, context: &ID3D11DeviceContext) {
+    unsafe {
+        context.Unmap(
+            mapped_data.buffer as *mut ID3D11Buffer as *mut winapi::um::d3d11::ID3D11Resource,
+            0,
+        );
+    }
+}
+
+pub struct LinearAllocatorState {
+    used_bytes: usize,
+}
+
+pub struct LinearAllocator<'a> {
+    gpu_data: MappedGpuData<'a>,
+
+    state: LinearAllocatorState,
+}
+
+pub struct HeapAlloc<'a, T> {
+    ptr: &'a mut T,
+    first_constant_offset: u32,
+    num_constants: u32,
+}
+
+fn round_up_to_multiple(number: usize, multiple: usize) -> usize {
+    ((number + multiple - 1) / multiple) * multiple
+}
+
+impl<'a, T> HeapAlloc<'a, T> {
+    pub fn new(
+        x: T,
+        gpu_data: &'a MappedGpuData,
+        state: &mut LinearAllocatorState,
+    ) -> HeapAlloc<'a, T> {
+        let allocation_size: usize = round_up_to_multiple(std::mem::size_of::<T>(), 256);
+
+        let data_slice = gpu_data.data;
+        let start_offset_in_bytes = state.used_bytes;
+        // let end_offset_in_byes    = allocator.used_bytes + allocation_size;
+
+        let data_ptr =
+            data_slice[state.used_bytes..(state.used_bytes + allocation_size)].as_ptr() as *mut T;
+
+        state.used_bytes += allocation_size;
+
+        unsafe {
+            // write data into target destination
+            std::ptr::write(data_ptr, x);
+
+            HeapAlloc {
+                ptr: data_ptr.as_mut().unwrap(),
+                first_constant_offset: (start_offset_in_bytes / 16) as u32,
+                num_constants: (allocation_size / 16) as u32,
+            }
+        }
+    }
+}
+
+impl<T> std::ops::Deref for HeapAlloc<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.ptr
+    }
+}
+
+impl<T> std::ops::DerefMut for HeapAlloc<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        self.ptr
+    }
+}
+
+struct GpuBuffer {
+    native_buffer: *mut ID3D11Buffer,
+}
+
+fn create_constant_buffer(device: &ID3D11Device, size_in_bytes: u32) -> GpuBuffer {
+    let mut per_draw_buffer: *mut ID3D11Buffer = std::ptr::null_mut();
+
+    let buffer_desc = D3D11_BUFFER_DESC {
+        ByteWidth: size_in_bytes,
+        Usage: D3D11_USAGE_DYNAMIC,
+        BindFlags: D3D11_BIND_CONSTANT_BUFFER,
+        CPUAccessFlags: D3D11_CPU_ACCESS_WRITE,
+        MiscFlags: 0,
+        StructureByteStride: 0,
+    };
+
+    let error =
+        unsafe { device.CreateBuffer(&buffer_desc, std::ptr::null(), &mut per_draw_buffer) };
+
+    assert!(error == winapi::shared::winerror::S_OK);
+
+    GpuBuffer {
+        native_buffer: per_draw_buffer,
+    }
+}
+
+struct CpuRenderFrameData {
+    frame_constant_buffer: GpuBuffer,
+}
+
 struct GraphicsDeviceLayer {
     device: *mut ID3D11Device,
     immediate_context: *mut ID3D11DeviceContext,
@@ -173,7 +337,7 @@ struct GraphicsDeviceLayer {
 
     vertex_shader: *mut ID3D11VertexShader,
     pixel_shader: *mut ID3D11PixelShader,
-    command_context: *mut ID3D11DeviceContext,
+    command_context: *mut ID3D11DeviceContext1,
 }
 
 fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
@@ -299,6 +463,7 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
         );
 
         let mut command_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
+        let mut command_context1: *mut ID3D11DeviceContext1 = std::ptr::null_mut();
 
         let error = d3d11_device
             .as_ref()
@@ -306,6 +471,18 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
             .CreateDeferredContext(0, &mut command_context);
 
         assert!(error == winapi::shared::winerror::S_OK);
+
+        command_context.as_ref().unwrap().QueryInterface(
+            &ID3D11DeviceContext1::uuidof(),
+            &mut command_context1 as *mut *mut ID3D11DeviceContext1
+                as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(error == winapi::shared::winerror::S_OK);
+
+        // release the old interface, we don't need it anymore.
+        // all further access will be done via the ID3D11DeviceContext1 interface
+        command_context.as_ref().unwrap().Release();
 
         let mut vertex_shader: *mut ID3D11VertexShader = std::ptr::null_mut();
         let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
@@ -342,7 +519,7 @@ fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
             backbuffer_rtv,
             vertex_shader,
             pixel_shader,
-            command_context,
+            command_context: command_context1,
         })
     }
 }
@@ -356,12 +533,30 @@ fn main() {
     let graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd).unwrap();
 
+    // create data required for each frame
+    let cpu_render_frame_data: [CpuRenderFrameData; 2] = [
+        CpuRenderFrameData {
+            frame_constant_buffer: create_constant_buffer(
+                unsafe { graphics_layer.device.as_ref().unwrap() },
+                1024 * 8,
+            ),
+        },
+        CpuRenderFrameData {
+            frame_constant_buffer: create_constant_buffer(
+                unsafe { graphics_layer.device.as_ref().unwrap() },
+                1024 * 8,
+            ),
+        },
+    ];
+
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
 
     let mut current_time = std::time::Instant::now();
     let mut draw_frame_number: u64 = 0;
     let mut update_frame_number: u64 = 0;
+
+    let mut timer_update = 0.0;
 
     while !should_game_close {
         let new_time = std::time::Instant::now();
@@ -394,6 +589,7 @@ fn main() {
                 "update {} accumulator {} dt {} ",
                 update_frame_number, accumulator, dt
             );
+            timer_update += dt;
 
             // update the game for a fixed number of steps
             accumulator -= dt;
@@ -403,6 +599,8 @@ fn main() {
         // draw the game
         let subframe_blend = accumulator / dt;
 
+        let timer_draw = timer_update + accumulator;
+
         // draw
         println!(
             "draw {} subframe_blend {}",
@@ -411,6 +609,23 @@ fn main() {
 
         let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
         unsafe {
+            let frame_data: &CpuRenderFrameData =
+                &cpu_render_frame_data[draw_frame_number as usize % cpu_render_frame_data.len()];
+
+            let constant_buffer = frame_data
+                .frame_constant_buffer
+                .native_buffer
+                .as_mut()
+                .unwrap();
+
+            let mut gpu_heap = LinearAllocator {
+                gpu_data: map_gpu_buffer(
+                    constant_buffer,
+                    graphics_layer.immediate_context.as_ref().unwrap(),
+                ),
+                state: LinearAllocatorState { used_bytes: 0 },
+            };
+
             let command_context = graphics_layer.command_context.as_ref().unwrap();
 
             command_context.ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
@@ -432,13 +647,74 @@ fn main() {
                 [graphics_layer.backbuffer_rtv];
             command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
 
+            let cycle_length_seconds = 2.0;
+
+            let color = Float3 {
+                x: f32::sin(2.0 * std::f32::consts::PI * (timer_draw / cycle_length_seconds)) * 0.5
+                    + 0.5,
+                y: 0.0,
+                z: 0.0,
+            };
+
+            // allocate the constants for this draw call
+            let obj1_alloc: HeapAlloc<ScreenSpaceQuadData> = HeapAlloc::new(
+                ScreenSpaceQuadData {
+                    color,
+                    padding: 0.0,
+                    scale: Float2 { x: 0.5, y: 0.5 },
+                    position: Float2 { x: 0.0, y: 0.0 },
+                },
+                &gpu_heap.gpu_data,
+                &mut gpu_heap.state,
+            );
+
             // bind the shaders
             command_context.VSSetShader(graphics_layer.vertex_shader, std::ptr::null_mut(), 0);
             command_context.PSSetShader(graphics_layer.pixel_shader, std::ptr::null_mut(), 0);
 
+            let first_constant: u32 = obj1_alloc.first_constant_offset;
+            let num_constants: u32 = obj1_alloc.num_constants;
+
+            let buffers: [*mut ID3D11Buffer; 1] = [std::ptr::null_mut()];
+
+            command_context.VSSetConstantBuffers(
+                0, // which slot to bind to
+                1, // the number of buffers to bind
+                buffers.as_ptr(),
+            );
+
+            command_context.PSSetConstantBuffers(
+                0, // which slot to bind to
+                1, // the number of buffers to bind
+                buffers.as_ptr(),
+            );
+
+            command_context.PSSetConstantBuffers1(
+                0,                                               // which slot to bind to
+                1,                                               // the number of buffers to bind
+                &frame_data.frame_constant_buffer.native_buffer, // the buffer to bind
+                &first_constant,
+                &num_constants,
+            );
+
+            command_context.VSSetConstantBuffers1(
+                0,                                               // which slot to bind to
+                1,                                               // the number of buffers to bind
+                &frame_data.frame_constant_buffer.native_buffer, // the buffer to bind
+                &first_constant,
+                &num_constants,
+            );
+
             // we are drawing 4 vertices using a triangle strip topology
             command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             command_context.Draw(4, 0);
+
+            // unmap the gpu buffer
+            // from this point onwards we are unable to allocate further memory
+            unmap_gpu_buffer(
+                gpu_heap.gpu_data,
+                graphics_layer.immediate_context.as_ref().unwrap(),
+            );
 
             let mut command_list: *mut ID3D11CommandList = std::ptr::null_mut();
 
@@ -464,6 +740,15 @@ fn main() {
     }
 
     unsafe {
+        for frame_data in &cpu_render_frame_data {
+            frame_data
+                .frame_constant_buffer
+                .native_buffer
+                .as_ref()
+                .unwrap()
+                .Release();
+        }
+
         graphics_layer.backbuffer_rtv.as_ref().unwrap().Release();
         graphics_layer
             .backbuffer_texture
