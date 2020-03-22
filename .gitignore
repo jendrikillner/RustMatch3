@@ -1,1 +1,7 @@
 match3_game/target/*
+/.vs/RustMatch3/v15/.suo
+/.vs/RustMatch3/v15/Browse.VC.db
+/.vs/RustMatch3/v15/Browse.VC.opendb
+/match3_game/target_vs/*
+/match3_game/.vs/RustMatch3/v15/.suo
+/match3_game/.vs/RustMatch3/v15/Browse.VC.db
