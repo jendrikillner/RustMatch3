@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.852
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "match3_game", "match3_game\match3_game.vcxproj", "{1808C30E-C998-43F8-AC62-6F067A19CB99}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Clippy-Debug|x64 = Clippy-Debug|x64
+		Clippy-Release|x64 = Clippy-Release|x64
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+		Test-Debug|x64 = Test-Debug|x64
+		Test-Release|x64 = Test-Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Clippy-Debug|x64.ActiveCfg = Clippy-Debug|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Clippy-Debug|x64.Build.0 = Clippy-Debug|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Clippy-Release|x64.ActiveCfg = Clippy-Release|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Clippy-Release|x64.Build.0 = Clippy-Release|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Debug|x64.ActiveCfg = Debug|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Debug|x64.Build.0 = Debug|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Release|x64.ActiveCfg = Release|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Release|x64.Build.0 = Release|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Test-Debug|x64.ActiveCfg = Test-Debug|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Test-Debug|x64.Build.0 = Test-Debug|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Test-Release|x64.ActiveCfg = Test-Release|x64
+		{1808C30E-C998-43F8-AC62-6F067A19CB99}.Test-Release|x64.Build.0 = Test-Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C5A33C16-FA11-49B9-AC04-34A23230C533}
+	EndGlobalSection
+EndGlobal
