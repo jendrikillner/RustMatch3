@@ -4,7 +4,15 @@
 name = "match3_game"
 version = "0.1.0"
 dependencies = [
+ "os_window",
  "std_time_ext",
+ "winapi",
+]
+
+[[package]]
+name = "os_window"
+version = "0.1.0"
+dependencies = [
  "winapi",
 ]
 

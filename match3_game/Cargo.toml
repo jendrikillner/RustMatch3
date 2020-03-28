@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 winapi = { version = "0.3", features = ["winuser", "d3d11", "d3d11_1", "winerror", "dxgi1_2"] }
 std_time_ext = { path = "../std_time_ext" }
+os_window = { path = "../os_window" }
