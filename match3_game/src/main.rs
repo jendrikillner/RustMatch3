@@ -167,9 +167,7 @@ fn main() {
 
         execute_command_list(&graphics_layer, &graphics_layer.graphics_command_list);
 
-        unsafe {
-            graphics_layer.swapchain.as_ref().unwrap().Present(1, 0);
-        }
+        present_swapchain(&graphics_layer);
 
         draw_frame_number += 1;
     }

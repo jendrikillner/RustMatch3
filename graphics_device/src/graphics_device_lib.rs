@@ -538,3 +538,9 @@ pub fn execute_command_list(
         command_list.as_ref().unwrap().Release();
     }
 }
+
+pub fn present_swapchain(graphics_layer: &GraphicsDeviceLayer) {
+    unsafe {
+        graphics_layer.swapchain.as_ref().unwrap().Present(1, 0);
+    }
+}
