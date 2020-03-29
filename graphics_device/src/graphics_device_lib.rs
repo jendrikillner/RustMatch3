@@ -501,3 +501,10 @@ pub fn bind_constant(
         );
     }
 }
+
+pub fn draw_vertices(command_list: &mut GraphicsCommandList, vertex_count: u32) {
+    unsafe {
+		let command_context = command_list.command_context.as_ref().unwrap();
+        command_context.Draw(vertex_count, 0);
+    }
+}

@@ -160,10 +160,10 @@ fn main() {
 
         bind_constant(&mut graphics_layer.graphics_command_list, 0, &obj1_alloc);
 
+        draw_vertices(&mut graphics_layer.graphics_command_list, 4);
+
         unsafe {
             let command_context = graphics_layer.command_context.as_ref().unwrap();
-
-            command_context.Draw(4, 0);
 
             // unmap the gpu buffer
             // from this point onwards we are unable to allocate further memory
