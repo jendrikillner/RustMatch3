@@ -1,5 +1,4 @@
 use winapi::um::d3d11::*;
-use winapi::um::d3dcommon::*;
 
 use os_window::*;
 use graphics_device::*;
@@ -51,6 +50,14 @@ fn main() {
             frame_constant_buffer: create_constant_buffer(&graphics_layer, 1024 * 8),
         },
     ];
+
+    // load the PSO required to draw the quad onto the screen
+
+    let pso_desc = PipelineStateObjectDesc {
+        shader_name: "target_data/shaders/screen_space_quad",
+    };
+
+    let screenspace_quad_pso: PipelineStateObject = create_pso(graphics_layer.device, pso_desc);
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
@@ -146,12 +153,13 @@ fn main() {
             &mut gpu_heap.state,
         );
 
+        bind_pso(
+            &mut graphics_layer.graphics_command_list,
+            &screenspace_quad_pso,
+        );
+
         unsafe {
             let command_context = graphics_layer.command_context.as_ref().unwrap();
-
-            // bind the shaders
-            command_context.VSSetShader(graphics_layer.vertex_shader, std::ptr::null_mut(), 0);
-            command_context.PSSetShader(graphics_layer.pixel_shader, std::ptr::null_mut(), 0);
 
             let first_constant: u32 = obj1_alloc.first_constant_offset;
             let num_constants: u32 = obj1_alloc.num_constants;
@@ -187,8 +195,6 @@ fn main() {
                 &num_constants,
             );
 
-            // we are drawing 4 vertices using a triangle strip topology
-            command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             command_context.Draw(4, 0);
 
             // unmap the gpu buffer

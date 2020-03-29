@@ -365,6 +365,58 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
     }
 }
 
+pub struct PipelineStateObjectDesc<'a> {
+    pub shader_name: &'a str,
+}
+
+pub struct PipelineStateObject<'a> {
+    pub vertex_shader: &'a ID3D11VertexShader,
+    pub pixel_shader: &'a ID3D11PixelShader,
+}
+
+pub fn create_pso<'a>(
+    device: *mut ID3D11Device,
+    desc: PipelineStateObjectDesc,
+) -> PipelineStateObject<'a> {
+    // build the name of the vertex and pixel shader to load
+    let vertex_shader_name = format!("{0}.vsb", desc.shader_name);
+    let pixel_shader_name = format!("{0}.psb", desc.shader_name);
+
+    let mut vertex_shader: *mut ID3D11VertexShader = std::ptr::null_mut();
+    let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
+
+    // load a shader
+    let vertex_shader_memory = std::fs::read(vertex_shader_name).unwrap();
+    let pixel_shader_memory = std::fs::read(pixel_shader_name).unwrap();
+
+    let error: HRESULT = unsafe {
+        device.as_ref().unwrap().CreateVertexShader(
+            vertex_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
+            vertex_shader_memory.len(),
+            std::ptr::null_mut(),
+            &mut vertex_shader as *mut *mut ID3D11VertexShader,
+        )
+    };
+
+    assert!(error == winapi::shared::winerror::S_OK);
+
+    let error: HRESULT = unsafe {
+        device.as_ref().unwrap().CreatePixelShader(
+            pixel_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
+            pixel_shader_memory.len(),
+            std::ptr::null_mut(),
+            &mut pixel_shader as *mut *mut ID3D11PixelShader,
+        )
+    };
+
+    assert!(error == winapi::shared::winerror::S_OK);
+
+    PipelineStateObject {
+        vertex_shader: unsafe { vertex_shader.as_mut().unwrap() },
+        pixel_shader: unsafe { pixel_shader.as_mut().unwrap() },
+    }
+}
+
 pub fn begin_render_pass(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
@@ -393,5 +445,28 @@ pub fn begin_render_pass(
         // bind backbuffer as render target
         let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv.native_view];
         command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
+    }
+}
+
+pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObject) {
+    unsafe {
+        let command_context = command_list.command_context.as_ref().unwrap();
+
+        // hack around the fact that VSSetShader takes a mutable pointer
+        // the function never modifies the vertex or pixel shader
+        // don't want the interface to have to expose mutable PipelineStateObject references because of it
+        // instead take the poiner value, read the absolute u64 value of the adress and cast that to a mutable pointer
+        // sorry borrow checker :)
+        let vertex_shader_mut: *mut ID3D11VertexShader =
+            (pso.vertex_shader as *const ID3D11VertexShader as u64) as *mut ID3D11VertexShader;
+        let pixel_shader_mut: *mut ID3D11PixelShader =
+            (pso.pixel_shader as *const ID3D11PixelShader as u64) as *mut ID3D11PixelShader;
+
+        // bind the shaders
+        command_context.VSSetShader(vertex_shader_mut, std::ptr::null_mut(), 0);
+        command_context.PSSetShader(pixel_shader_mut, std::ptr::null_mut(), 0);
+
+        // fow now assume all PSO will be using this state
+        command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     }
 }
