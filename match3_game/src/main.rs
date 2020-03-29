@@ -56,7 +56,7 @@ fn main() {
         shader_name: "target_data/shaders/screen_space_quad",
     };
 
-    let screenspace_quad_pso: PipelineStateObject = create_pso(graphics_layer.device, pso_desc);
+    let screenspace_quad_pso: PipelineStateObject = create_pso(&graphics_layer.device, pso_desc);
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
@@ -193,6 +193,6 @@ fn main() {
 
         graphics_layer.immediate_context.as_ref().unwrap().Release();
         graphics_layer.swapchain.as_ref().unwrap().Release();
-        graphics_layer.device.as_ref().unwrap().Release();
+        graphics_layer.device.native.Release();
     }
 }

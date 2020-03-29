@@ -128,7 +128,7 @@ pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes:
     };
 
     let error = unsafe {
-        device_layer.device.as_ref().unwrap().CreateBuffer(
+        device_layer.device.native.CreateBuffer(
             &buffer_desc,
             std::ptr::null(),
             &mut per_draw_buffer,
@@ -150,8 +150,12 @@ pub struct RenderTargetView<'a> {
     pub native_view: &'a mut winapi::um::d3d11::ID3D11RenderTargetView,
 }
 
+pub struct GraphicsDevice<'a> {
+    pub native: &'a mut ID3D11Device,
+}
+
 pub struct GraphicsDeviceLayer<'a> {
-    pub device: *mut ID3D11Device,
+    pub device: GraphicsDevice<'a>,
     pub immediate_context: *mut ID3D11DeviceContext,
     pub swapchain: *mut IDXGISwapChain1,
     pub backbuffer_rtv: RenderTargetView<'a>,
@@ -335,7 +339,9 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
         assert!(error == winapi::shared::winerror::S_OK);
 
         Ok(GraphicsDeviceLayer {
-            device: d3d11_device,
+            device: GraphicsDevice {
+                native: d3d11_device.as_mut().unwrap(),
+            },
             immediate_context: d3d11_immediate_context,
             swapchain,
             backbuffer_texture,
@@ -362,7 +368,7 @@ pub struct PipelineStateObject<'a> {
 }
 
 pub fn create_pso<'a>(
-    device: *mut ID3D11Device,
+    device: &GraphicsDevice,
     desc: PipelineStateObjectDesc,
 ) -> PipelineStateObject<'a> {
     // build the name of the vertex and pixel shader to load
@@ -377,7 +383,7 @@ pub fn create_pso<'a>(
     let pixel_shader_memory = std::fs::read(pixel_shader_name).unwrap();
 
     let error: HRESULT = unsafe {
-        device.as_ref().unwrap().CreateVertexShader(
+        device.native.CreateVertexShader(
             vertex_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
             vertex_shader_memory.len(),
             std::ptr::null_mut(),
@@ -388,7 +394,7 @@ pub fn create_pso<'a>(
     assert!(error == winapi::shared::winerror::S_OK);
 
     let error: HRESULT = unsafe {
-        device.as_ref().unwrap().CreatePixelShader(
+        device.native.CreatePixelShader(
             pixel_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
             pixel_shader_memory.len(),
             std::ptr::null_mut(),
