@@ -47,7 +47,7 @@ pub fn map_gpu_buffer<'a>(
                 mapped_resource.RowPitch as usize,
             )
         },
-        buffer: buffer,
+        buffer,
     }
 }
 
