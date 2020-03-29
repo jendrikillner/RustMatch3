@@ -508,3 +508,27 @@ pub fn draw_vertices(command_list: &mut GraphicsCommandList, vertex_count: u32) 
         command_context.Draw(vertex_count, 0);
     }
 }
+
+pub fn execute_command_list(
+    graphics_layer: &GraphicsDeviceLayer,
+    command_list_in: &GraphicsCommandList,
+) {
+    unsafe {
+        let command_context = command_list_in.command_context.as_ref().unwrap();
+
+        let mut command_list: *mut ID3D11CommandList = std::ptr::null_mut();
+
+        let result = command_context.FinishCommandList(0, &mut command_list);
+
+        assert!(result == winapi::shared::winerror::S_OK);
+
+        graphics_layer
+            .immediate_context
+            .as_ref()
+            .unwrap()
+            .ExecuteCommandList(command_list, 1);
+
+        // once the command list is executed, we can release it
+        command_list.as_ref().unwrap().Release();
+    }
+}

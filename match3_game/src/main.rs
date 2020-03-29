@@ -1,5 +1,4 @@
-use winapi::um::d3d11::*;
-
+use graphics_device::*;
 use os_window::*;
 use graphics_device::*;
 
@@ -166,24 +165,7 @@ fn main() {
         // from this point onwards we are unable to allocate further memory
         unmap_gpu_buffer(gpu_heap.gpu_data, &graphics_layer);
 
-        unsafe {
-            let command_context = graphics_layer.command_context.as_ref().unwrap();
-
-            let mut command_list: *mut ID3D11CommandList = std::ptr::null_mut();
-
-            let result = command_context.FinishCommandList(0, &mut command_list);
-
-            assert!(result == winapi::shared::winerror::S_OK);
-
-            graphics_layer
-                .immediate_context
-                .as_ref()
-                .unwrap()
-                .ExecuteCommandList(command_list, 1);
-
-            // once the command list is executed, we can release it
-            command_list.as_ref().unwrap().Release();
-        }
+        execute_command_list(&graphics_layer, &graphics_layer.graphics_command_list);
 
         unsafe {
             graphics_layer.swapchain.as_ref().unwrap().Present(1, 0);
