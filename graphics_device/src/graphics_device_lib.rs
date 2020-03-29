@@ -420,13 +420,15 @@ pub fn create_pso<'a>(
 pub fn begin_render_pass(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
-    rtv: &mut RenderTargetView,
+    rtv: & RenderTargetView,
 ) {
     unsafe {
         let command_context = command_list.command_context.as_ref().unwrap();
 
+		let rtv_mut : *mut ID3D11RenderTargetView = rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
+
         command_context.ClearRenderTargetView(
-            rtv.native_view as *mut winapi::um::d3d11::ID3D11RenderTargetView,
+            rtv_mut,
             &clear_color,
         );
 
@@ -443,7 +445,7 @@ pub fn begin_render_pass(
         command_context.RSSetViewports(1, &viewport);
 
         // bind backbuffer as render target
-        let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv.native_view];
+        let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv_mut];
         command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
     }
 }

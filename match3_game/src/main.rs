@@ -129,7 +129,7 @@ fn main() {
         begin_render_pass(
             &mut graphics_layer.graphics_command_list,
             color,
-            &mut graphics_layer.backbuffer_rtv,
+            &graphics_layer.backbuffer_rtv,
         );
 
         let cycle_length_seconds = 2.0;
