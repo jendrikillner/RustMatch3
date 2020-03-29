@@ -51,9 +51,9 @@ pub fn map_gpu_buffer<'a>(
     }
 }
 
-pub fn unmap_gpu_buffer(mapped_data: MappedGpuData, context: &ID3D11DeviceContext) {
+pub fn unmap_gpu_buffer(mapped_data: MappedGpuData, device_layer: &GraphicsDeviceLayer) {
     unsafe {
-        context.Unmap(
+        device_layer.immediate_context.as_ref().unwrap().Unmap(
             mapped_data.buffer.native_buffer as *mut ID3D11Buffer
                 as *mut winapi::um::d3d11::ID3D11Resource,
             0,
@@ -504,7 +504,7 @@ pub fn bind_constant(
 
 pub fn draw_vertices(command_list: &mut GraphicsCommandList, vertex_count: u32) {
     unsafe {
-		let command_context = command_list.command_context.as_ref().unwrap();
+        let command_context = command_list.command_context.as_ref().unwrap();
         command_context.Draw(vertex_count, 0);
     }
 }

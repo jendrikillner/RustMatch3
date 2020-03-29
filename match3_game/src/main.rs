@@ -162,15 +162,12 @@ fn main() {
 
         draw_vertices(&mut graphics_layer.graphics_command_list, 4);
 
+        // unmap the gpu buffer
+        // from this point onwards we are unable to allocate further memory
+        unmap_gpu_buffer(gpu_heap.gpu_data, &graphics_layer);
+
         unsafe {
             let command_context = graphics_layer.command_context.as_ref().unwrap();
-
-            // unmap the gpu buffer
-            // from this point onwards we are unable to allocate further memory
-            unmap_gpu_buffer(
-                gpu_heap.gpu_data,
-                graphics_layer.immediate_context.as_ref().unwrap(),
-            );
 
             let mut command_list: *mut ID3D11CommandList = std::ptr::null_mut();
 
