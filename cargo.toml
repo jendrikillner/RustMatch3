@@ -1,5 +1,5 @@
 [workspace]
 
 members = [
-    "match3_game", "std_time_ext", "os_window"
+    "match3_game", "std_time_ext", "os_window", "graphics_device"
 ]

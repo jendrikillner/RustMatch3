@@ -5,5 +5,4 @@ authors = ["Jendrik Illner <jendrik.illner@gmail.com>"]
 edition = "2018"
 
 [lib]
-crate-type = ["dylib"]
 path = "./src/std_time_ext.rs"
