@@ -11,8 +11,8 @@ use winapi::um::d3dcommon::*;
 use winapi::Interface;
 
 pub struct MappedGpuData<'a> {
-    data: &'a [u8],               // reference to slice of cpu accessible gpu memory
-    buffer: &'a mut ID3D11Buffer, // reference to the d3d11 buffer the data comes from
+    data: &'a [u8],        // reference to slice of cpu accessible gpu memory
+    buffer: &'a GpuBuffer, // reference to the d3d11 buffer the data comes from
 }
 
 pub fn map_gpu_buffer<'a>(
@@ -47,14 +47,15 @@ pub fn map_gpu_buffer<'a>(
                 mapped_resource.RowPitch as usize,
             )
         },
-        buffer: native_buffer,
+        buffer: buffer,
     }
 }
 
 pub fn unmap_gpu_buffer(mapped_data: MappedGpuData, context: &ID3D11DeviceContext) {
     unsafe {
         context.Unmap(
-            mapped_data.buffer as *mut ID3D11Buffer as *mut winapi::um::d3d11::ID3D11Resource,
+            mapped_data.buffer.native_buffer as *mut ID3D11Buffer
+                as *mut winapi::um::d3d11::ID3D11Resource,
             0,
         );
     }
@@ -70,8 +71,8 @@ pub struct LinearAllocator<'a> {
     pub state: LinearAllocatorState,
 }
 
-pub struct HeapAlloc<'a, T> {
-    ptr: &'a mut T,
+pub struct HeapAlloc<'a> {
+    gpu_buffer_src: &'a GpuBuffer,
     pub first_constant_offset: u32,
     pub num_constants: u32,
 }
@@ -80,12 +81,12 @@ pub fn round_up_to_multiple(number: usize, multiple: usize) -> usize {
     ((number + multiple - 1) / multiple) * multiple
 }
 
-impl<'a, T> HeapAlloc<'a, T> {
-    pub fn new(
+impl<'a> HeapAlloc<'a> {
+    pub fn new<T>(
         x: T,
         gpu_data: &'a MappedGpuData,
         state: &mut LinearAllocatorState,
-    ) -> HeapAlloc<'a, T> {
+    ) -> HeapAlloc<'a> {
         let allocation_size: usize = round_up_to_multiple(std::mem::size_of::<T>(), 256);
 
         let data_slice = gpu_data.data;
@@ -102,25 +103,11 @@ impl<'a, T> HeapAlloc<'a, T> {
             std::ptr::write(data_ptr, x);
 
             HeapAlloc {
-                ptr: data_ptr.as_mut().unwrap(),
+                gpu_buffer_src: gpu_data.buffer,
                 first_constant_offset: (start_offset_in_bytes / 16) as u32,
                 num_constants: (allocation_size / 16) as u32,
             }
         }
-    }
-}
-
-impl<T> std::ops::Deref for HeapAlloc<'_, T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        self.ptr
-    }
-}
-
-impl<T> std::ops::DerefMut for HeapAlloc<'_, T> {
-    fn deref_mut(&mut self) -> &mut T {
-        self.ptr
     }
 }
 
@@ -420,17 +407,15 @@ pub fn create_pso<'a>(
 pub fn begin_render_pass(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
-    rtv: & RenderTargetView,
+    rtv: &RenderTargetView,
 ) {
     unsafe {
         let command_context = command_list.command_context.as_ref().unwrap();
 
-		let rtv_mut : *mut ID3D11RenderTargetView = rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
+        let rtv_mut: *mut ID3D11RenderTargetView =
+            rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
 
-        command_context.ClearRenderTargetView(
-            rtv_mut,
-            &clear_color,
-        );
+        command_context.ClearRenderTargetView(rtv_mut, &clear_color);
 
         let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
             Height: 400.0,
@@ -470,5 +455,49 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
 
         // fow now assume all PSO will be using this state
         command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    }
+}
+
+pub fn bind_constant(
+    command_list: &mut GraphicsCommandList,
+    bind_slot: u32,
+    constant_alloc: &HeapAlloc,
+) {
+    let command_context = unsafe { command_list.command_context.as_ref().unwrap() };
+
+    let first_constant: u32 = constant_alloc.first_constant_offset;
+    let num_constants: u32 = constant_alloc.num_constants;
+
+    let null_buffers: [*mut ID3D11Buffer; 1] = [std::ptr::null_mut()];
+    let buffers: [*mut ID3D11Buffer; 1] = [constant_alloc.gpu_buffer_src.native_buffer];
+
+    unsafe {
+        command_context.VSSetConstantBuffers(
+            0, // which slot to bind to
+            1, // the number of buffers to bind
+            null_buffers.as_ptr(),
+        );
+
+        command_context.PSSetConstantBuffers(
+            0, // which slot to bind to
+            1, // the number of buffers to bind
+            null_buffers.as_ptr(),
+        );
+
+        command_context.PSSetConstantBuffers1(
+            bind_slot,        // which slot to bind to
+            1,                // the number of buffers to bind
+            buffers.as_ptr(), // the buffer to bind
+            &first_constant,
+            &num_constants,
+        );
+
+        command_context.VSSetConstantBuffers1(
+            bind_slot,        // which slot to bind to
+            1,                // the number of buffers to bind
+            buffers.as_ptr(), // the buffer to bind
+            &first_constant,
+            &num_constants,
+        );
     }
 }

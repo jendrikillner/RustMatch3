@@ -142,7 +142,7 @@ fn main() {
         };
 
         // allocate the constants for this draw call
-        let obj1_alloc: HeapAlloc<ScreenSpaceQuadData> = HeapAlloc::new(
+        let obj1_alloc = HeapAlloc::new(
             ScreenSpaceQuadData {
                 color,
                 padding: 0.0,
@@ -158,42 +158,10 @@ fn main() {
             &screenspace_quad_pso,
         );
 
+        bind_constant(&mut graphics_layer.graphics_command_list, 0, &obj1_alloc);
+
         unsafe {
             let command_context = graphics_layer.command_context.as_ref().unwrap();
-
-            let first_constant: u32 = obj1_alloc.first_constant_offset;
-            let num_constants: u32 = obj1_alloc.num_constants;
-
-            let null_buffers: [*mut ID3D11Buffer; 1] = [std::ptr::null_mut()];
-            let buffers: [*mut ID3D11Buffer; 1] = [frame_data.frame_constant_buffer.native_buffer];
-
-            command_context.VSSetConstantBuffers(
-                0, // which slot to bind to
-                1, // the number of buffers to bind
-                null_buffers.as_ptr(),
-            );
-
-            command_context.PSSetConstantBuffers(
-                0, // which slot to bind to
-                1, // the number of buffers to bind
-                null_buffers.as_ptr(),
-            );
-
-            command_context.PSSetConstantBuffers1(
-                0,                // which slot to bind to
-                1,                // the number of buffers to bind
-                buffers.as_ptr(), // the buffer to bind
-                &first_constant,
-                &num_constants,
-            );
-
-            command_context.VSSetConstantBuffers1(
-                0,                // which slot to bind to
-                1,                // the number of buffers to bind
-                buffers.as_ptr(), // the buffer to bind
-                &first_constant,
-                &num_constants,
-            );
 
             command_context.Draw(4, 0);
 
