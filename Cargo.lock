@@ -13,7 +13,6 @@ version = "0.1.0"
 dependencies = [
  "graphics_device",
  "os_window",
- "std_time_ext",
  "winapi",
 ]
 
@@ -23,10 +22,6 @@ version = "0.1.0"
 dependencies = [
  "winapi",
 ]
-
-[[package]]
-name = "std_time_ext"
-version = "0.1.0"
 
 [[package]]
 name = "winapi"

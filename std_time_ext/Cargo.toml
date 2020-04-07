@@ -1,8 +1,0 @@
-[package]
-name = "std_time_ext"
-version = "0.1.0"
-authors = ["Jendrik Illner <jendrik.illner@gmail.com>"]
-edition = "2018"
-
-[lib]
-path = "./src/std_time_ext.rs"

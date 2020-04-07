@@ -2,8 +2,11 @@ use winapi::um::d3d11::*;
 use winapi::um::d3dcommon::*;
 
 use os_window::*;
-use std_time_ext::*;
 use graphics_device::*;
+
+pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
+    (dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000.0) as f32
+}
 
 #[repr(C)]
 struct Float3 {

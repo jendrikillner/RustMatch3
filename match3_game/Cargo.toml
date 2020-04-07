@@ -6,6 +6,5 @@ edition = "2018"
 
 [dependencies]
 winapi = { version = "0.3" }
-std_time_ext = { path = "../std_time_ext" }
 os_window = { path = "../os_window" }
 graphics_device = { path = "../graphics_device" }
