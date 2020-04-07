@@ -1,0 +1,5 @@
+[workspace]
+
+members = [
+    "match3_game", "std_time_ext"
+]
