@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>$(ProjectDir)\target\$(Configuration)</OutDir>
-    <IntDir>$(ProjectDir)\target_vs\$(Configuration)</IntDir>
+    <OutDir>$(ProjectDir)\..\target\$(Configuration)</OutDir>
+    <IntDir>$(ProjectDir)\..\target_vs\$(Configuration)</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup />
   <ItemGroup />
