@@ -1,0 +1,5 @@
+[workspace]
+
+members = [
+    "match3_game", "os_window", "graphics_device"
+]

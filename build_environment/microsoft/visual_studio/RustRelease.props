@@ -6,7 +6,7 @@
     <NMakeBuildCommandLine>cargo build --release</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>cargo clean &amp;&amp; cargo build --release</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>cargo clean</NMakeCleanCommandLine>
-    <NMakeOutput>$(ProjectDir)target\$(Configuration)\$(ProjectName).exe</NMakeOutput>
+    <NMakeOutput>$(ProjectDir)..\target\$(Configuration)\$(ProjectName).exe</NMakeOutput>
   </PropertyGroup>
   <ItemDefinitionGroup />
   <ItemGroup />
