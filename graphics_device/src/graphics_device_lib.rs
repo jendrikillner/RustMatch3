@@ -2,14 +2,40 @@ use winapi::shared::dxgi::*;
 use winapi::shared::dxgi1_2::*;
 use winapi::shared::dxgiformat::*;
 use winapi::shared::dxgitype::*;
-use winapi::shared::minwindef::UINT;
+use winapi::shared::minwindef::{UINT, ULONG};
 use winapi::shared::ntdef::HRESULT;
 use winapi::shared::windef::HWND;
 use winapi::um::d3d11::*;
 use winapi::um::d3d11_1::*;
+use winapi::um::d3d11sdklayers::*;
 use winapi::um::d3dcommon::*;
 use winapi::Interface;
-use winapi::um::d3d11sdklayers::*;
+
+pub fn leak_check_release(
+    object_to_release: &winapi::um::unknwnbase::IUnknown,
+    expected_ref_count: ULONG,
+    debug_device: Option<&ID3D11Debug>,
+) {
+    let prev_refcount: ULONG = unsafe { object_to_release.Release() };
+
+    if prev_refcount == expected_ref_count {
+        return;
+    }
+
+    // if we are runnign with the debug device, log the outstanding references
+    if let Some(x) = debug_device {
+        unsafe {
+            x.ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+        }
+    }
+
+    assert!(
+        prev_refcount == expected_ref_count,
+        "object was not released, still has {} outstanding references, expected {} ",
+        prev_refcount,
+        expected_ref_count
+    );
+}
 
 pub struct MappedGpuData<'a> {
     data: &'a [u8],        // reference to slice of cpu accessible gpu memory
@@ -165,8 +191,8 @@ pub struct GraphicsDeviceLayer<'a> {
     pub command_context: *mut ID3D11DeviceContext1,
     pub graphics_command_list: GraphicsCommandList,
 
-	// a debug device is only created when requested and the necessary windows component has been installed
-	pub debug_device: Option<&'a ID3D11Debug>
+    // a debug device is only created when requested and the necessary windows component has been installed
+    pub debug_device: Option<&'a ID3D11Debug>,
 }
 
 pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLayer<'a>, ()> {
@@ -341,7 +367,7 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
                 native_view: backbuffer_rtv.as_mut().unwrap(),
             },
             command_context: command_context1,
-			debug_device: debug_device.as_ref(),
+            debug_device: debug_device.as_ref(),
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
             },

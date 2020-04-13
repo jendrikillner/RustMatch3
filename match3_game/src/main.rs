@@ -190,6 +190,6 @@ fn main() {
 
         graphics_layer.immediate_context.as_ref().unwrap().Release();
         graphics_layer.swapchain.as_ref().unwrap().Release();
-        graphics_layer.device.native.Release();
+        leak_check_release(graphics_layer.device.native, 0, graphics_layer.debug_device);
     }
 }
