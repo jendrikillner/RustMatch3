@@ -16,8 +16,8 @@ pub struct MappedGpuData<'a> {
 }
 
 pub fn map_gpu_buffer<'a>(
-    buffer: &'a mut ID3D11Buffer,
-    context: &ID3D11DeviceContext,
+    buffer: &'a GpuBuffer,
+    device_layer: &GraphicsDeviceLayer,
 ) -> MappedGpuData<'a> {
     let mut mapped_resource = D3D11_MAPPED_SUBRESOURCE {
         pData: std::ptr::null_mut(),
@@ -25,10 +25,12 @@ pub fn map_gpu_buffer<'a>(
         DepthPitch: 0,
     };
 
+	let native_buffer : &mut ID3D11Buffer = unsafe { buffer.native_buffer.as_mut().unwrap() };
+
     // map the buffer
     let result: HRESULT = unsafe {
-        context.Map(
-            buffer as *mut ID3D11Buffer as *mut winapi::um::d3d11::ID3D11Resource,
+        device_layer.immediate_context.as_ref().unwrap().Map(
+            native_buffer as *mut ID3D11Buffer as *mut winapi::um::d3d11::ID3D11Resource,
             0,
             D3D11_MAP_WRITE_NO_OVERWRITE,
             0,
@@ -45,7 +47,7 @@ pub fn map_gpu_buffer<'a>(
                 mapped_resource.RowPitch as usize,
             )
         },
-        buffer,
+        buffer: native_buffer,
     }
 }
 

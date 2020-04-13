@@ -111,24 +111,15 @@ fn main() {
         );
 
         let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
+        let frame_data: &CpuRenderFrameData =
+            &cpu_render_frame_data[draw_frame_number as usize % cpu_render_frame_data.len()];
+
+        let mut gpu_heap = LinearAllocator {
+            gpu_data: map_gpu_buffer(&frame_data.frame_constant_buffer, &graphics_layer),
+            state: LinearAllocatorState { used_bytes: 0 },
+        };
+
         unsafe {
-            let frame_data: &CpuRenderFrameData =
-                &cpu_render_frame_data[draw_frame_number as usize % cpu_render_frame_data.len()];
-
-            let constant_buffer = frame_data
-                .frame_constant_buffer
-                .native_buffer
-                .as_mut()
-                .unwrap();
-
-            let mut gpu_heap = LinearAllocator {
-                gpu_data: map_gpu_buffer(
-                    constant_buffer,
-                    graphics_layer.immediate_context.as_ref().unwrap(),
-                ),
-                state: LinearAllocatorState { used_bytes: 0 },
-            };
-
             let command_context = graphics_layer.command_context.as_ref().unwrap();
 
             command_context.ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
@@ -178,32 +169,33 @@ fn main() {
             let first_constant: u32 = obj1_alloc.first_constant_offset;
             let num_constants: u32 = obj1_alloc.num_constants;
 
-            let buffers: [*mut ID3D11Buffer; 1] = [std::ptr::null_mut()];
+            let null_buffers: [*mut ID3D11Buffer; 1] = [std::ptr::null_mut()];
+            let buffers: [*mut ID3D11Buffer; 1] = [frame_data.frame_constant_buffer.native_buffer];
 
             command_context.VSSetConstantBuffers(
                 0, // which slot to bind to
                 1, // the number of buffers to bind
-                buffers.as_ptr(),
+                null_buffers.as_ptr(),
             );
 
             command_context.PSSetConstantBuffers(
                 0, // which slot to bind to
                 1, // the number of buffers to bind
-                buffers.as_ptr(),
+                null_buffers.as_ptr(),
             );
 
             command_context.PSSetConstantBuffers1(
-                0,                                               // which slot to bind to
-                1,                                               // the number of buffers to bind
-                &frame_data.frame_constant_buffer.native_buffer, // the buffer to bind
+                0,                // which slot to bind to
+                1,                // the number of buffers to bind
+                buffers.as_ptr(), // the buffer to bind
                 &first_constant,
                 &num_constants,
             );
 
             command_context.VSSetConstantBuffers1(
-                0,                                               // which slot to bind to
-                1,                                               // the number of buffers to bind
-                &frame_data.frame_constant_buffer.native_buffer, // the buffer to bind
+                0,                // which slot to bind to
+                1,                // the number of buffers to bind
+                buffers.as_ptr(), // the buffer to bind
                 &first_constant,
                 &num_constants,
             );
