@@ -37,6 +37,16 @@ pub fn leak_check_release(
     );
 }
 
+macro_rules! set_debug_name {
+    ($input:expr, $input2:expr) => {
+        $input.SetPrivateData(
+            &WKPDID_D3DDebugObjectName,
+            $input2.len() as u32,
+            $input2.as_ptr() as *const winapi::ctypes::c_void,
+        );
+    };
+}
+
 pub struct MappedGpuData<'a> {
     data: &'a [u8],        // reference to slice of cpu accessible gpu memory
     buffer: &'a GpuBuffer, // reference to the d3d11 buffer the data comes from
@@ -241,6 +251,8 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
                 &mut debug_device as *mut *mut ID3D11Debug as *mut *mut winapi::ctypes::c_void,
             );
         }
+
+        set_debug_name!(d3d11_device.as_ref().unwrap(), "Main D3D11 Device");
 
         let mut dxgi_device: *mut IDXGIDevice = std::ptr::null_mut();
 
