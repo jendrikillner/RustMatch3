@@ -152,7 +152,7 @@ pub struct GpuBuffer {
     pub native_buffer: *mut ID3D11Buffer,
 }
 
-pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes: u32) -> GpuBuffer {
+pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes: u32, debug_name : &str) -> GpuBuffer {
     let mut constant_buffer: *mut ID3D11Buffer = std::ptr::null_mut();
 
     let buffer_desc = D3D11_BUFFER_DESC {
@@ -173,6 +173,10 @@ pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes:
     };
 
     assert!(error == winapi::shared::winerror::S_OK);
+
+	unsafe {
+		set_debug_name!(constant_buffer.as_ref().unwrap(), format!("Constant Buffer - {}", debug_name) );
+	}
 
     GpuBuffer {
         native_buffer: constant_buffer,
@@ -242,6 +246,8 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             "d3d11 device creation failed"
         );
 
+		set_debug_name!(d3d11_immediate_context.as_ref().unwrap(), "Immediate Context");
+
         let mut debug_device: *mut ID3D11Debug = std::ptr::null_mut();
 
         if enable_debug_device {
@@ -251,8 +257,6 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
                 &mut debug_device as *mut *mut ID3D11Debug as *mut *mut winapi::ctypes::c_void,
             );
         }
-
-        set_debug_name!(d3d11_device.as_ref().unwrap(), "Main D3D11 Device");
 
         let mut dxgi_device: *mut IDXGIDevice = std::ptr::null_mut();
 
@@ -337,6 +341,8 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
                 as *mut *mut winapi::ctypes::c_void,
         );
 
+		set_debug_name!(backbuffer_texture.as_ref().unwrap(), "Backbuffer Texture");
+
         let mut backbuffer_rtv: *mut ID3D11RenderTargetView = std::ptr::null_mut();
 
         // now create a render target view onto the texture
@@ -345,6 +351,8 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             std::ptr::null_mut(),
             &mut backbuffer_rtv,
         );
+
+		set_debug_name!(backbuffer_rtv.as_ref().unwrap(), "Backbuffer RTV");
 
         let mut command_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
         let mut command_context1: *mut ID3D11DeviceContext1 = std::ptr::null_mut();
@@ -368,6 +376,8 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
         // all further access will be done via the ID3D11DeviceContext1 interface
         command_context.as_ref().unwrap().Release();
 
+		set_debug_name!(command_context.as_ref().unwrap(), "Deferred Context");
+
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
                 native: d3d11_device.as_mut().unwrap(),
@@ -387,6 +397,7 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
     }
 }
 
+#[derive(Debug)]
 pub struct PipelineStateObjectDesc<'a> {
     pub shader_name: &'a str,
 }
@@ -408,8 +419,8 @@ pub fn create_pso<'a>(
     let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
 
     // load a shader
-    let vertex_shader_memory = std::fs::read(vertex_shader_name).unwrap();
-    let pixel_shader_memory = std::fs::read(pixel_shader_name).unwrap();
+    let vertex_shader_memory = std::fs::read(&vertex_shader_name).unwrap();
+    let pixel_shader_memory = std::fs::read(&pixel_shader_name).unwrap();
 
     let error: HRESULT = unsafe {
         device.native.CreateVertexShader(
@@ -422,6 +433,10 @@ pub fn create_pso<'a>(
 
     assert!(error == winapi::shared::winerror::S_OK);
 
+	unsafe {
+		set_debug_name!(vertex_shader.as_ref().unwrap(), format!("PSO [{:?}] src-file: {1}", &desc, &vertex_shader_name) );
+	}
+
     let error: HRESULT = unsafe {
         device.native.CreatePixelShader(
             pixel_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
@@ -432,6 +447,10 @@ pub fn create_pso<'a>(
     };
 
     assert!(error == winapi::shared::winerror::S_OK);
+
+	unsafe {
+		set_debug_name!(pixel_shader.as_ref().unwrap(), format!("PSO [{:?}] src-file: {1}", &desc, &pixel_shader_name) );
+	}
 
     PipelineStateObject {
         vertex_shader: unsafe { vertex_shader.as_mut().unwrap() },
