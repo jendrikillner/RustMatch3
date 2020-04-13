@@ -126,7 +126,7 @@ pub struct GpuBuffer {
     pub native_buffer: *mut ID3D11Buffer,
 }
 
-pub fn create_constant_buffer(device: &ID3D11Device, size_in_bytes: u32) -> GpuBuffer {
+pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes: u32) -> GpuBuffer {
     let mut per_draw_buffer: *mut ID3D11Buffer = std::ptr::null_mut();
 
     let buffer_desc = D3D11_BUFFER_DESC {
@@ -139,7 +139,7 @@ pub fn create_constant_buffer(device: &ID3D11Device, size_in_bytes: u32) -> GpuB
     };
 
     let error =
-        unsafe { device.CreateBuffer(&buffer_desc, std::ptr::null(), &mut per_draw_buffer) };
+        unsafe { device_layer.device.as_ref().unwrap().CreateBuffer(&buffer_desc, std::ptr::null(), &mut per_draw_buffer) };
 
     assert!(error == winapi::shared::winerror::S_OK);
 

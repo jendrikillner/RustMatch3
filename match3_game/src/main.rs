@@ -45,16 +45,10 @@ fn main() {
     // create data required for each frame
     let cpu_render_frame_data: [CpuRenderFrameData; 2] = [
         CpuRenderFrameData {
-            frame_constant_buffer: create_constant_buffer(
-                unsafe { graphics_layer.device.as_ref().unwrap() },
-                1024 * 8,
-            ),
+            frame_constant_buffer: create_constant_buffer(&graphics_layer, 1024 * 8),
         },
         CpuRenderFrameData {
-            frame_constant_buffer: create_constant_buffer(
-                unsafe { graphics_layer.device.as_ref().unwrap() },
-                1024 * 8,
-            ),
+            frame_constant_buffer: create_constant_buffer(&graphics_layer, 1024 * 8),
         },
     ];
 
