@@ -2,5 +2,25 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <None Include="src\main.rs" />
+    <None Include="..\graphics_device\Cargo.toml">
+      <Filter>graphics_device</Filter>
+    </None>
+    <None Include="..\graphics_device\src\graphics_device_lib.rs">
+      <Filter>graphics_device</Filter>
+    </None>
+    <None Include="..\os_window\Cargo.toml">
+      <Filter>os_window</Filter>
+    </None>
+    <None Include="..\os_window\src\os_window_lib.rs">
+      <Filter>os_window</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="graphics_device">
+      <UniqueIdentifier>{7878e807-2f84-43f8-84a4-84e352635482}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="os_window">
+      <UniqueIdentifier>{c4710786-0d27-4da1-aad0-0d4693147e85}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>
