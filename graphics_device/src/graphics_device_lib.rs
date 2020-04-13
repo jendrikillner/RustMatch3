@@ -9,6 +9,7 @@ use winapi::um::d3d11::*;
 use winapi::um::d3d11_1::*;
 use winapi::um::d3dcommon::*;
 use winapi::Interface;
+use winapi::um::d3d11sdklayers::*;
 
 pub struct MappedGpuData<'a> {
     data: &'a [u8],        // reference to slice of cpu accessible gpu memory
@@ -163,13 +164,23 @@ pub struct GraphicsDeviceLayer<'a> {
 
     pub command_context: *mut ID3D11DeviceContext1,
     pub graphics_command_list: GraphicsCommandList,
+
+	// a debug device is only created when requested and the necessary windows component has been installed
+	pub debug_device: Option<&'a ID3D11Debug>
 }
 
 pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLayer<'a>, ()> {
     unsafe {
         // use default adapter
         let adapter: *mut IDXGIAdapter = std::ptr::null_mut();
-        let flags: UINT = 0;
+
+		let enable_debug_device = true;
+
+        let flags: UINT = if enable_debug_device {
+            D3D11_CREATE_DEVICE_DEBUG
+        } else {
+            0
+        };
 
         let feature_levels: D3D_FEATURE_LEVEL = D3D_FEATURE_LEVEL_11_0;
         let num_feature_levels: UINT = 1;
@@ -194,6 +205,16 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             result == winapi::shared::winerror::S_OK,
             "d3d11 device creation failed"
         );
+
+        let mut debug_device: *mut ID3D11Debug = std::ptr::null_mut();
+
+        if enable_debug_device {
+            // get d3d11 debug devuce
+            d3d11_device.as_ref().unwrap().QueryInterface(
+                &ID3D11Debug::uuidof(),
+                &mut debug_device as *mut *mut ID3D11Debug as *mut *mut winapi::ctypes::c_void,
+            );
+        }
 
         let mut dxgi_device: *mut IDXGIDevice = std::ptr::null_mut();
 
@@ -320,6 +341,7 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
                 native_view: backbuffer_rtv.as_mut().unwrap(),
             },
             command_context: command_context1,
+			debug_device: debug_device.as_ref(),
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
             },
