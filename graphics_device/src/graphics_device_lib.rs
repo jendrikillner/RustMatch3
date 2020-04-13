@@ -25,7 +25,7 @@ pub fn map_gpu_buffer<'a>(
         DepthPitch: 0,
     };
 
-	let native_buffer : &mut ID3D11Buffer = unsafe { buffer.native_buffer.as_mut().unwrap() };
+    let native_buffer: &mut ID3D11Buffer = unsafe { buffer.native_buffer.as_mut().unwrap() };
 
     // map the buffer
     let result: HRESULT = unsafe {
@@ -140,14 +140,23 @@ pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes:
         StructureByteStride: 0,
     };
 
-    let error =
-        unsafe { device_layer.device.as_ref().unwrap().CreateBuffer(&buffer_desc, std::ptr::null(), &mut per_draw_buffer) };
+    let error = unsafe {
+        device_layer.device.as_ref().unwrap().CreateBuffer(
+            &buffer_desc,
+            std::ptr::null(),
+            &mut per_draw_buffer,
+        )
+    };
 
     assert!(error == winapi::shared::winerror::S_OK);
 
     GpuBuffer {
         native_buffer: per_draw_buffer,
     }
+}
+
+pub struct GraphicsCommandList {
+    command_context: *mut ID3D11DeviceContext1,
 }
 
 pub struct GraphicsDeviceLayer {
@@ -160,6 +169,7 @@ pub struct GraphicsDeviceLayer {
     pub vertex_shader: *mut ID3D11VertexShader,
     pub pixel_shader: *mut ID3D11PixelShader,
     pub command_context: *mut ID3D11DeviceContext1,
+    pub graphics_command_list: GraphicsCommandList,
 }
 
 pub fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
@@ -342,6 +352,37 @@ pub fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, (
             vertex_shader,
             pixel_shader,
             command_context: command_context1,
+            graphics_command_list: GraphicsCommandList {
+                command_context: command_context1,
+            },
         })
+    }
+}
+
+pub fn begin_render_pass(
+    command_list: &mut GraphicsCommandList,
+    clear_color: [f32; 4],
+    rtv: *mut winapi::um::d3d11::ID3D11RenderTargetView,
+) {
+    unsafe {
+        let command_context = command_list.command_context.as_ref().unwrap();
+
+        command_context.ClearRenderTargetView(rtv, &clear_color);
+
+        let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
+            Height: 400.0,
+            Width: 400.0,
+            MinDepth: 0.0,
+            MaxDepth: 1.0,
+            TopLeftX: 0.0,
+            TopLeftY: 0.0,
+        };
+
+        // set viewport for the output window
+        command_context.RSSetViewports(1, &viewport);
+
+        // bind backbuffer as render target
+        let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv];
+        command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
     }
 }

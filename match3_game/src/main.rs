@@ -39,7 +39,7 @@ fn main() {
     // afterwards open a window we can render into
     let main_window: Window = create_window().unwrap();
 
-    let graphics_layer: GraphicsDeviceLayer =
+    let mut graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd).unwrap();
 
     // create data required for each frame
@@ -119,27 +119,14 @@ fn main() {
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
+        begin_render_pass(
+            &mut graphics_layer.graphics_command_list,
+            color,
+            graphics_layer.backbuffer_rtv,
+        );
+
         unsafe {
             let command_context = graphics_layer.command_context.as_ref().unwrap();
-
-            command_context.ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
-
-            let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
-                Height: 400.0,
-                Width: 400.0,
-                MinDepth: 0.0,
-                MaxDepth: 1.0,
-                TopLeftX: 0.0,
-                TopLeftY: 0.0,
-            };
-
-            // set viewport for the output window
-            command_context.RSSetViewports(1, &viewport);
-
-            // bind backbuffer as render target
-            let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] =
-                [graphics_layer.backbuffer_rtv];
-            command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
 
             let cycle_length_seconds = 2.0;
 
