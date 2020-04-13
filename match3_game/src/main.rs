@@ -122,7 +122,7 @@ fn main() {
         begin_render_pass(
             &mut graphics_layer.graphics_command_list,
             color,
-            graphics_layer.backbuffer_rtv,
+            &mut graphics_layer.backbuffer_rtv,
         );
 
         unsafe {
@@ -231,7 +231,7 @@ fn main() {
                 .Release();
         }
 
-        graphics_layer.backbuffer_rtv.as_ref().unwrap().Release();
+        graphics_layer.backbuffer_rtv.native_view.Release();
         graphics_layer
             .backbuffer_texture
             .as_ref()

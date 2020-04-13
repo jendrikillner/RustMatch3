@@ -159,11 +159,15 @@ pub struct GraphicsCommandList {
     command_context: *mut ID3D11DeviceContext1,
 }
 
-pub struct GraphicsDeviceLayer {
+pub struct RenderTargetView<'a> {
+	pub native_view : &'a mut winapi::um::d3d11::ID3D11RenderTargetView
+}
+
+pub struct GraphicsDeviceLayer<'a> {
     pub device: *mut ID3D11Device,
     pub immediate_context: *mut ID3D11DeviceContext,
     pub swapchain: *mut IDXGISwapChain1,
-    pub backbuffer_rtv: *mut ID3D11RenderTargetView,
+    pub backbuffer_rtv: RenderTargetView<'a>,
     pub backbuffer_texture: *mut ID3D11Texture2D,
 
     pub vertex_shader: *mut ID3D11VertexShader,
@@ -172,7 +176,7 @@ pub struct GraphicsDeviceLayer {
     pub graphics_command_list: GraphicsCommandList,
 }
 
-pub fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, ()> {
+pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLayer<'a>, ()> {
     unsafe {
         // use default adapter
         let adapter: *mut IDXGIAdapter = std::ptr::null_mut();
@@ -348,7 +352,7 @@ pub fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, (
             immediate_context: d3d11_immediate_context,
             swapchain,
             backbuffer_texture,
-            backbuffer_rtv,
+            backbuffer_rtv : RenderTargetView { native_view: backbuffer_rtv.as_mut().unwrap() },
             vertex_shader,
             pixel_shader,
             command_context: command_context1,
@@ -362,12 +366,12 @@ pub fn create_device_graphics_layer(hwnd: HWND) -> Result<GraphicsDeviceLayer, (
 pub fn begin_render_pass(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
-    rtv: *mut winapi::um::d3d11::ID3D11RenderTargetView,
+    rtv: &mut RenderTargetView,
 ) {
     unsafe {
         let command_context = command_list.command_context.as_ref().unwrap();
 
-        command_context.ClearRenderTargetView(rtv, &clear_color);
+        command_context.ClearRenderTargetView(rtv.native_view as *mut winapi::um::d3d11::ID3D11RenderTargetView, &clear_color);
 
         let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
             Height: 400.0,
@@ -382,7 +386,7 @@ pub fn begin_render_pass(
         command_context.RSSetViewports(1, &viewport);
 
         // bind backbuffer as render target
-        let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv];
+        let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv.native_view];
         command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
     }
 }
