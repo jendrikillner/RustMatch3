@@ -125,29 +125,29 @@ fn main() {
             &mut graphics_layer.backbuffer_rtv,
         );
 
+        let cycle_length_seconds = 2.0;
+
+        let color = Float3 {
+            x: f32::sin(2.0 * std::f32::consts::PI * (timer_draw / cycle_length_seconds)) * 0.5
+                + 0.5,
+            y: 0.0,
+            z: 0.0,
+        };
+
+        // allocate the constants for this draw call
+        let obj1_alloc: HeapAlloc<ScreenSpaceQuadData> = HeapAlloc::new(
+            ScreenSpaceQuadData {
+                color,
+                padding: 0.0,
+                scale: Float2 { x: 0.5, y: 0.5 },
+                position: Float2 { x: 0.0, y: 0.0 },
+            },
+            &gpu_heap.gpu_data,
+            &mut gpu_heap.state,
+        );
+
         unsafe {
             let command_context = graphics_layer.command_context.as_ref().unwrap();
-
-            let cycle_length_seconds = 2.0;
-
-            let color = Float3 {
-                x: f32::sin(2.0 * std::f32::consts::PI * (timer_draw / cycle_length_seconds)) * 0.5
-                    + 0.5,
-                y: 0.0,
-                z: 0.0,
-            };
-
-            // allocate the constants for this draw call
-            let obj1_alloc: HeapAlloc<ScreenSpaceQuadData> = HeapAlloc::new(
-                ScreenSpaceQuadData {
-                    color,
-                    padding: 0.0,
-                    scale: Float2 { x: 0.5, y: 0.5 },
-                    position: Float2 { x: 0.0, y: 0.0 },
-                },
-                &gpu_heap.gpu_data,
-                &mut gpu_heap.state,
-            );
 
             // bind the shaders
             command_context.VSSetShader(graphics_layer.vertex_shader, std::ptr::null_mut(), 0);

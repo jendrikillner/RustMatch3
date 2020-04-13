@@ -160,7 +160,7 @@ pub struct GraphicsCommandList {
 }
 
 pub struct RenderTargetView<'a> {
-	pub native_view : &'a mut winapi::um::d3d11::ID3D11RenderTargetView
+    pub native_view: &'a mut winapi::um::d3d11::ID3D11RenderTargetView,
 }
 
 pub struct GraphicsDeviceLayer<'a> {
@@ -352,7 +352,9 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             immediate_context: d3d11_immediate_context,
             swapchain,
             backbuffer_texture,
-            backbuffer_rtv : RenderTargetView { native_view: backbuffer_rtv.as_mut().unwrap() },
+            backbuffer_rtv: RenderTargetView {
+                native_view: backbuffer_rtv.as_mut().unwrap(),
+            },
             vertex_shader,
             pixel_shader,
             command_context: command_context1,
@@ -371,7 +373,10 @@ pub fn begin_render_pass(
     unsafe {
         let command_context = command_list.command_context.as_ref().unwrap();
 
-        command_context.ClearRenderTargetView(rtv.native_view as *mut winapi::um::d3d11::ID3D11RenderTargetView, &clear_color);
+        command_context.ClearRenderTargetView(
+            rtv.native_view as *mut winapi::um::d3d11::ID3D11RenderTargetView,
+            &clear_color,
+        );
 
         let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
             Height: 400.0,
