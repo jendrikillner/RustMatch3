@@ -153,7 +153,7 @@ pub struct GpuBuffer {
 }
 
 pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes: u32) -> GpuBuffer {
-    let mut per_draw_buffer: *mut ID3D11Buffer = std::ptr::null_mut();
+    let mut constant_buffer: *mut ID3D11Buffer = std::ptr::null_mut();
 
     let buffer_desc = D3D11_BUFFER_DESC {
         ByteWidth: size_in_bytes,
@@ -168,14 +168,14 @@ pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes:
         device_layer.device.native.CreateBuffer(
             &buffer_desc,
             std::ptr::null(),
-            &mut per_draw_buffer,
+            &mut constant_buffer,
         )
     };
 
     assert!(error == winapi::shared::winerror::S_OK);
 
     GpuBuffer {
-        native_buffer: per_draw_buffer,
+        native_buffer: constant_buffer,
     }
 }
 
