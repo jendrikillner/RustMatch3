@@ -161,8 +161,6 @@ pub struct GraphicsDeviceLayer<'a> {
     pub backbuffer_rtv: RenderTargetView<'a>,
     pub backbuffer_texture: *mut ID3D11Texture2D,
 
-    pub vertex_shader: *mut ID3D11VertexShader,
-    pub pixel_shader: *mut ID3D11PixelShader,
     pub command_context: *mut ID3D11DeviceContext1,
     pub graphics_command_list: GraphicsCommandList,
 }
@@ -311,33 +309,6 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
         // all further access will be done via the ID3D11DeviceContext1 interface
         command_context.as_ref().unwrap().Release();
 
-        let mut vertex_shader: *mut ID3D11VertexShader = std::ptr::null_mut();
-        let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
-
-        // load a shader
-        let vertex_shader_memory =
-            std::fs::read("target_data/shaders/screen_space_quad.vsb").unwrap();
-        let pixel_shader_memory =
-            std::fs::read("target_data/shaders/screen_space_quad.psb").unwrap();
-
-        let error: HRESULT = d3d11_device.as_ref().unwrap().CreateVertexShader(
-            vertex_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
-            vertex_shader_memory.len(),
-            std::ptr::null_mut(),
-            &mut vertex_shader as *mut *mut ID3D11VertexShader,
-        );
-
-        assert!(error == winapi::shared::winerror::S_OK);
-
-        let error: HRESULT = d3d11_device.as_ref().unwrap().CreatePixelShader(
-            pixel_shader_memory.as_ptr() as *const winapi::ctypes::c_void,
-            pixel_shader_memory.len(),
-            std::ptr::null_mut(),
-            &mut pixel_shader as *mut *mut ID3D11PixelShader,
-        );
-
-        assert!(error == winapi::shared::winerror::S_OK);
-
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
                 native: d3d11_device.as_mut().unwrap(),
@@ -348,8 +319,6 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             backbuffer_rtv: RenderTargetView {
                 native_view: backbuffer_rtv.as_mut().unwrap(),
             },
-            vertex_shader,
-            pixel_shader,
             command_context: command_context1,
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
