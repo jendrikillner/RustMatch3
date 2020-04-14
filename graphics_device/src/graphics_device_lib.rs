@@ -258,12 +258,13 @@ impl Drop for GraphicsDeviceLayer<'_> {
     }
 }
 
-pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLayer<'a>, ()> {
+pub fn create_device_graphics_layer<'a>(
+    hwnd: HWND,
+    enable_debug_device: bool,
+) -> Result<GraphicsDeviceLayer<'a>, ()> {
     unsafe {
         // use default adapter
         let adapter: *mut IDXGIAdapter = std::ptr::null_mut();
-
-        let enable_debug_device = true;
 
         let flags: UINT = if enable_debug_device {
             D3D11_CREATE_DEVICE_DEBUG

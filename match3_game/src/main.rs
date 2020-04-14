@@ -30,14 +30,39 @@ struct CpuRenderFrameData {
     frame_constant_buffer: GpuBuffer,
 }
 
+struct CommandLineArgs {
+    enable_debug_device: bool,
+}
+
+fn parse_cmdline() -> CommandLineArgs {
+    let mut enable_debug_device = false;
+
+    for argument in std::env::args() {
+
+		// make sure we always compare agsinst the lowercase version so that casing doesn't matter
+		let mut arg = argument;
+		arg.make_ascii_lowercase();
+
+        if arg == "-debugdevice" {
+            enable_debug_device = true;
+        }
+    }
+
+    CommandLineArgs {
+        enable_debug_device,
+    }
+}
+
 fn main() {
+    let args: CommandLineArgs = parse_cmdline();
+
     let mut should_game_close = false;
 
     // afterwards open a window we can render into
     let main_window: Window = create_window().unwrap();
 
     let mut graphics_layer: GraphicsDeviceLayer =
-        create_device_graphics_layer(main_window.hwnd).unwrap();
+        create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
 
     // create data required for each frame
     let cpu_render_frame_data: [CpuRenderFrameData; 2] = [
