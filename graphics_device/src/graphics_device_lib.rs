@@ -152,7 +152,17 @@ pub struct GpuBuffer {
     pub native_buffer: *mut ID3D11Buffer,
 }
 
-pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes: u32, debug_name : &str) -> GpuBuffer {
+impl Drop for GpuBuffer {
+    fn drop(&mut self) {
+        leak_check_release(unsafe { self.native_buffer.as_ref().unwrap() }, 0, None);
+    }
+}
+
+pub fn create_constant_buffer(
+    device_layer: &GraphicsDeviceLayer,
+    size_in_bytes: u32,
+    debug_name: &str,
+) -> GpuBuffer {
     let mut constant_buffer: *mut ID3D11Buffer = std::ptr::null_mut();
 
     let buffer_desc = D3D11_BUFFER_DESC {
@@ -187,25 +197,62 @@ pub struct GraphicsCommandList {
     pub command_context: *mut ID3D11DeviceContext1,
 }
 
+impl Drop for GraphicsCommandList {
+    fn drop(&mut self) {
+        unsafe {
+            leak_check_release(self.command_context.as_ref().unwrap(), 0, None);
+        }
+    }
+}
+
 pub struct RenderTargetView<'a> {
     pub native_view: &'a mut winapi::um::d3d11::ID3D11RenderTargetView,
 }
 
+impl Drop for RenderTargetView<'_> {
+    fn drop(&mut self) {
+        leak_check_release(self.native_view, 0, None);
+    }
+}
+
 pub struct GraphicsDevice<'a> {
     pub native: &'a mut ID3D11Device,
+    pub debug_device: Option<&'a ID3D11Debug>,
+}
+
+impl Drop for GraphicsDevice<'_> {
+    fn drop(&mut self) {
+        let expected_device_ref_count = if self.debug_device.is_some() { 1 } else { 0 };
+
+        leak_check_release(self.native, expected_device_ref_count, self.debug_device);
+
+        if let Some(x) = self.debug_device {
+            leak_check_release(&x, 0, None);
+        }
+    }
 }
 
 pub struct GraphicsDeviceLayer<'a> {
-    pub device: GraphicsDevice<'a>,
     pub immediate_context: *mut ID3D11DeviceContext,
     pub swapchain: *mut IDXGISwapChain1,
-    pub backbuffer_rtv: RenderTargetView<'a>,
     pub backbuffer_texture: *mut ID3D11Texture2D,
 
+    pub backbuffer_rtv: RenderTargetView<'a>,
     pub graphics_command_list: GraphicsCommandList,
 
-    // a debug device is only created when requested and the necessary windows component has been installed
-    pub debug_device: Option<&'a ID3D11Debug>,
+    // this needs to be the last parameter to make sure that all items that depend on ID3D11Device have been dropped before the device is dropped
+    pub device: GraphicsDevice<'a>,
+}
+
+impl Drop for GraphicsDeviceLayer<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            self.backbuffer_texture.as_ref().unwrap().Release();
+
+            self.immediate_context.as_ref().unwrap().Release();
+            self.swapchain.as_ref().unwrap().Release();
+        }
+    }
 }
 
 pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLayer<'a>, ()> {
@@ -380,6 +427,7 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
                 native: d3d11_device.as_mut().unwrap(),
+                debug_device: debug_device.as_ref(),
             },
             immediate_context: d3d11_immediate_context,
             swapchain,
@@ -387,7 +435,6 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             backbuffer_rtv: RenderTargetView {
                 native_view: backbuffer_rtv.as_mut().unwrap(),
             },
-            debug_device: debug_device.as_ref(),
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
             },
@@ -403,6 +450,13 @@ pub struct PipelineStateObjectDesc<'a> {
 pub struct PipelineStateObject<'a> {
     pub vertex_shader: &'a ID3D11VertexShader,
     pub pixel_shader: &'a ID3D11PixelShader,
+}
+
+impl Drop for PipelineStateObject<'_> {
+    fn drop(&mut self) {
+        leak_check_release(self.vertex_shader, 0, None);
+        leak_check_release(self.pixel_shader, 0, None);
+    }
 }
 
 pub fn create_pso<'a>(

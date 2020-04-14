@@ -170,37 +170,4 @@ fn main() {
 
         draw_frame_number += 1;
     }
-
-    unsafe {
-        for frame_data in &cpu_render_frame_data {
-            frame_data
-                .frame_constant_buffer
-                .native_buffer
-                .as_ref()
-                .unwrap()
-                .Release();
-        }
-
-        graphics_layer.backbuffer_rtv.native_view.Release();
-        graphics_layer
-            .backbuffer_texture
-            .as_ref()
-            .unwrap()
-            .Release();
-
-		screenspace_quad_pso.vertex_shader.Release();
-		screenspace_quad_pso.pixel_shader.Release();
-
-		graphics_layer.graphics_command_list.command_context.as_ref().unwrap().Release();
-        graphics_layer.immediate_context.as_ref().unwrap().Release();
-        graphics_layer.swapchain.as_ref().unwrap().Release();
-
-		let expected_device_ref_count = if graphics_layer.debug_device.is_some() { 1 } else { 0 };
-
-        leak_check_release(graphics_layer.device.native, expected_device_ref_count, graphics_layer.debug_device);
-
-		if let Some(x) = graphics_layer.debug_device {
-            leak_check_release(&x, 0, None);
-        }
-    }
 }
