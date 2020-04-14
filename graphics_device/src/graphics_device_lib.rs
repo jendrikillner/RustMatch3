@@ -184,7 +184,7 @@ pub fn create_constant_buffer(device_layer: &GraphicsDeviceLayer, size_in_bytes:
 }
 
 pub struct GraphicsCommandList {
-    command_context: *mut ID3D11DeviceContext1,
+    pub command_context: *mut ID3D11DeviceContext1,
 }
 
 pub struct RenderTargetView<'a> {
@@ -202,7 +202,6 @@ pub struct GraphicsDeviceLayer<'a> {
     pub backbuffer_rtv: RenderTargetView<'a>,
     pub backbuffer_texture: *mut ID3D11Texture2D,
 
-    pub command_context: *mut ID3D11DeviceContext1,
     pub graphics_command_list: GraphicsCommandList,
 
     // a debug device is only created when requested and the necessary windows component has been installed
@@ -372,9 +371,9 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
 
         assert!(error == winapi::shared::winerror::S_OK);
 
-        // release the old interface, we don't need it anymore.
-        // all further access will be done via the ID3D11DeviceContext1 interface
-        command_context.as_ref().unwrap().Release();
+		// should keep a ref-count of 1 because they are alternative views onto objects that have another view that is still active
+		leak_check_release(command_context.as_ref().unwrap(), 1, debug_device.as_ref());
+		dxgi_device.as_ref().unwrap().Release();
 
 		set_debug_name!(command_context.as_ref().unwrap(), "Deferred Context");
 
@@ -388,7 +387,6 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             backbuffer_rtv: RenderTargetView {
                 native_view: backbuffer_rtv.as_mut().unwrap(),
             },
-            command_context: command_context1,
             debug_device: debug_device.as_ref(),
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
