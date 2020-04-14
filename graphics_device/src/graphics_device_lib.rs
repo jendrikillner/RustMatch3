@@ -37,14 +37,14 @@ pub fn leak_check_release(
     );
 }
 
-macro_rules! set_debug_name {
-    ($input:expr, $input2:expr) => {
-        $input.SetPrivateData(
+fn set_debug_name( device_child : &ID3D11DeviceChild, name : &str ) {
+	unsafe {
+        device_child.SetPrivateData(
             &WKPDID_D3DDebugObjectName,
-            $input2.len() as u32,
-            $input2.as_ptr() as *const winapi::ctypes::c_void,
+            name.len() as u32,
+            name.as_ptr() as *const winapi::ctypes::c_void,
         );
-    };
+	}
 }
 
 pub struct MappedGpuData<'a> {
@@ -185,9 +185,9 @@ pub fn create_constant_buffer(
     assert!(error == winapi::shared::winerror::S_OK);
 
     unsafe {
-        set_debug_name!(
+        set_debug_name(
             constant_buffer.as_ref().unwrap(),
-            format!("Constant Buffer - {}", debug_name)
+            format!("Constant Buffer - {}", debug_name).as_str()
         );
     }
 
@@ -250,10 +250,9 @@ pub struct GraphicsDeviceLayer<'a> {
 impl Drop for GraphicsDeviceLayer<'_> {
     fn drop(&mut self) {
         unsafe {
-            self.backbuffer_texture.as_ref().unwrap().Release();
-
-            self.immediate_context.as_ref().unwrap().Release();
-            self.swapchain.as_ref().unwrap().Release();
+            leak_check_release( self.backbuffer_texture.as_ref().unwrap(), 0, self.device.debug_device);
+            leak_check_release( self.immediate_context.as_ref().unwrap(), 0, self.device.debug_device);
+            leak_check_release( self.swapchain.as_ref().unwrap(), 0, self.device.debug_device);
         }
     }
 }
@@ -296,7 +295,7 @@ pub fn create_device_graphics_layer<'a>(
             "d3d11 device creation failed"
         );
 
-        set_debug_name!(
+        set_debug_name(
             d3d11_immediate_context.as_ref().unwrap(),
             "Immediate Context"
         );
@@ -394,7 +393,7 @@ pub fn create_device_graphics_layer<'a>(
                 as *mut *mut winapi::ctypes::c_void,
         );
 
-        set_debug_name!(backbuffer_texture.as_ref().unwrap(), "Backbuffer Texture");
+        set_debug_name(backbuffer_texture.as_ref().unwrap(), "Backbuffer Texture");
 
         let mut backbuffer_rtv: *mut ID3D11RenderTargetView = std::ptr::null_mut();
 
@@ -405,7 +404,7 @@ pub fn create_device_graphics_layer<'a>(
             &mut backbuffer_rtv,
         );
 
-        set_debug_name!(backbuffer_rtv.as_ref().unwrap(), "Backbuffer RTV");
+        set_debug_name(backbuffer_rtv.as_ref().unwrap(), "Backbuffer RTV");
 
         let mut command_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
         let mut command_context1: *mut ID3D11DeviceContext1 = std::ptr::null_mut();
@@ -429,7 +428,7 @@ pub fn create_device_graphics_layer<'a>(
         leak_check_release(command_context.as_ref().unwrap(), 1, debug_device.as_ref());
         dxgi_device.as_ref().unwrap().Release();
 
-        set_debug_name!(command_context.as_ref().unwrap(), "Deferred Context");
+        set_debug_name(command_context.as_ref().unwrap(), "Deferred Context");
 
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
@@ -493,9 +492,9 @@ pub fn create_pso<'a>(
     assert!(error == winapi::shared::winerror::S_OK);
 
     unsafe {
-        set_debug_name!(
+        set_debug_name(
             vertex_shader.as_ref().unwrap(),
-            format!("PSO [{:?}] src-file: {1}", &desc, &vertex_shader_name)
+            format!("PSO [{:?}] src-file: {1}", &desc, &vertex_shader_name).as_str()
         );
     }
 
@@ -511,9 +510,9 @@ pub fn create_pso<'a>(
     assert!(error == winapi::shared::winerror::S_OK);
 
     unsafe {
-        set_debug_name!(
+        set_debug_name(
             pixel_shader.as_ref().unwrap(),
-            format!("PSO [{:?}] src-file: {1}", &desc, &pixel_shader_name)
+            format!("PSO [{:?}] src-file: {1}", &desc, &pixel_shader_name).as_str()
         );
     }
 
