@@ -184,9 +184,12 @@ pub fn create_constant_buffer(
 
     assert!(error == winapi::shared::winerror::S_OK);
 
-	unsafe {
-		set_debug_name!(constant_buffer.as_ref().unwrap(), format!("Constant Buffer - {}", debug_name) );
-	}
+    unsafe {
+        set_debug_name!(
+            constant_buffer.as_ref().unwrap(),
+            format!("Constant Buffer - {}", debug_name)
+        );
+    }
 
     GpuBuffer {
         native_buffer: constant_buffer,
@@ -260,7 +263,7 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
         // use default adapter
         let adapter: *mut IDXGIAdapter = std::ptr::null_mut();
 
-		let enable_debug_device = true;
+        let enable_debug_device = true;
 
         let flags: UINT = if enable_debug_device {
             D3D11_CREATE_DEVICE_DEBUG
@@ -292,7 +295,10 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             "d3d11 device creation failed"
         );
 
-		set_debug_name!(d3d11_immediate_context.as_ref().unwrap(), "Immediate Context");
+        set_debug_name!(
+            d3d11_immediate_context.as_ref().unwrap(),
+            "Immediate Context"
+        );
 
         let mut debug_device: *mut ID3D11Debug = std::ptr::null_mut();
 
@@ -387,7 +393,7 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
                 as *mut *mut winapi::ctypes::c_void,
         );
 
-		set_debug_name!(backbuffer_texture.as_ref().unwrap(), "Backbuffer Texture");
+        set_debug_name!(backbuffer_texture.as_ref().unwrap(), "Backbuffer Texture");
 
         let mut backbuffer_rtv: *mut ID3D11RenderTargetView = std::ptr::null_mut();
 
@@ -398,7 +404,7 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
             &mut backbuffer_rtv,
         );
 
-		set_debug_name!(backbuffer_rtv.as_ref().unwrap(), "Backbuffer RTV");
+        set_debug_name!(backbuffer_rtv.as_ref().unwrap(), "Backbuffer RTV");
 
         let mut command_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
         let mut command_context1: *mut ID3D11DeviceContext1 = std::ptr::null_mut();
@@ -418,11 +424,11 @@ pub fn create_device_graphics_layer<'a>(hwnd: HWND) -> Result<GraphicsDeviceLaye
 
         assert!(error == winapi::shared::winerror::S_OK);
 
-		// should keep a ref-count of 1 because they are alternative views onto objects that have another view that is still active
-		leak_check_release(command_context.as_ref().unwrap(), 1, debug_device.as_ref());
-		dxgi_device.as_ref().unwrap().Release();
+        // should keep a ref-count of 1 because they are alternative views onto objects that have another view that is still active
+        leak_check_release(command_context.as_ref().unwrap(), 1, debug_device.as_ref());
+        dxgi_device.as_ref().unwrap().Release();
 
-		set_debug_name!(command_context.as_ref().unwrap(), "Deferred Context");
+        set_debug_name!(command_context.as_ref().unwrap(), "Deferred Context");
 
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
@@ -485,9 +491,12 @@ pub fn create_pso<'a>(
 
     assert!(error == winapi::shared::winerror::S_OK);
 
-	unsafe {
-		set_debug_name!(vertex_shader.as_ref().unwrap(), format!("PSO [{:?}] src-file: {1}", &desc, &vertex_shader_name) );
-	}
+    unsafe {
+        set_debug_name!(
+            vertex_shader.as_ref().unwrap(),
+            format!("PSO [{:?}] src-file: {1}", &desc, &vertex_shader_name)
+        );
+    }
 
     let error: HRESULT = unsafe {
         device.native.CreatePixelShader(
@@ -500,9 +509,12 @@ pub fn create_pso<'a>(
 
     assert!(error == winapi::shared::winerror::S_OK);
 
-	unsafe {
-		set_debug_name!(pixel_shader.as_ref().unwrap(), format!("PSO [{:?}] src-file: {1}", &desc, &pixel_shader_name) );
-	}
+    unsafe {
+        set_debug_name!(
+            pixel_shader.as_ref().unwrap(),
+            format!("PSO [{:?}] src-file: {1}", &desc, &pixel_shader_name)
+        );
+    }
 
     PipelineStateObject {
         vertex_shader: unsafe { vertex_shader.as_mut().unwrap() },
