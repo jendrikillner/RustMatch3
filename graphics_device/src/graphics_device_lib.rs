@@ -196,11 +196,12 @@ pub fn create_constant_buffer(
     }
 }
 
-pub struct GraphicsCommandList {
+pub struct GraphicsCommandList<'a> {
     pub command_context: *mut ID3D11DeviceContext1,
+	phantom : std::marker::PhantomData<&'a mut ID3D11DeviceContext1> // a marker to indicate that we are holding a reference to ID3D11DeviceContext1 evenso we store a pointer. This is required for lifetime tracking
 }
 
-impl Drop for GraphicsCommandList {
+impl Drop for GraphicsCommandList<'_> {
     fn drop(&mut self) {
         unsafe {
             leak_check_release(self.command_context.as_ref().unwrap(), 0, None);
@@ -241,7 +242,7 @@ pub struct GraphicsDeviceLayer<'a> {
     pub backbuffer_texture: *mut ID3D11Texture2D,
 
     pub backbuffer_rtv: RenderTargetView<'a>,
-    pub graphics_command_list: GraphicsCommandList,
+    pub graphics_command_list: GraphicsCommandList<'a>,
 
     // this needs to be the last parameter to make sure that all items that depend on ID3D11Device have been dropped before the device is dropped
     pub device: GraphicsDevice<'a>,
@@ -443,6 +444,7 @@ pub fn create_device_graphics_layer<'a>(
             },
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
+				phantom: std::marker::PhantomData
             },
         })
     }
