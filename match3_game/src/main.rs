@@ -77,7 +77,7 @@ fn main() {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
                 1024 * 8,
-                "Frame 0 Constants",
+                "Frame 1 Constants",
             ),
         },
     ];
