@@ -101,6 +101,10 @@
   <ItemDefinitionGroup>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="..\graphics_device\Cargo.toml" />
+    <None Include="..\graphics_device\src\graphics_device_lib.rs" />
+    <None Include="..\os_window\Cargo.toml" />
+    <None Include="..\os_window\src\os_window_lib.rs" />
     <None Include="src\main.rs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

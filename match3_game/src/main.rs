@@ -1,8 +1,5 @@
-use winapi::um::d3d11::*;
-use winapi::um::d3dcommon::*;
-
-use os_window::*;
 use graphics_device::*;
+use os_window::*;
 
 pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
     (dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000.0) as f32
@@ -33,30 +30,65 @@ struct CpuRenderFrameData {
     frame_constant_buffer: GpuBuffer,
 }
 
+struct CommandLineArgs {
+    enable_debug_device: bool,
+}
+
+fn parse_cmdline() -> CommandLineArgs {
+    let mut enable_debug_device = false;
+
+    for argument in std::env::args() {
+
+		// make sure we always compare agsinst the lowercase version so that casing doesn't matter
+		let mut arg = argument;
+		arg.make_ascii_lowercase();
+
+        if arg == "-debugdevice" {
+            enable_debug_device = true;
+        }
+    }
+
+    CommandLineArgs {
+        enable_debug_device,
+    }
+}
+
 fn main() {
+    let args: CommandLineArgs = parse_cmdline();
+
     let mut should_game_close = false;
 
     // afterwards open a window we can render into
     let main_window: Window = create_window().unwrap();
 
-    let graphics_layer: GraphicsDeviceLayer =
-        create_device_graphics_layer(main_window.hwnd).unwrap();
+    let mut graphics_layer: GraphicsDeviceLayer =
+        create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
 
     // create data required for each frame
     let cpu_render_frame_data: [CpuRenderFrameData; 2] = [
         CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
-                unsafe { graphics_layer.device.as_ref().unwrap() },
+                &graphics_layer,
                 1024 * 8,
+                "Frame 0 Constants",
             ),
         },
         CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
-                unsafe { graphics_layer.device.as_ref().unwrap() },
+                &graphics_layer,
                 1024 * 8,
+                "Frame 1 Constants",
             ),
         },
     ];
+
+    // load the PSO required to draw the quad onto the screen
+
+    let pso_desc = PipelineStateObjectDesc {
+        shader_name: "target_data/shaders/screen_space_quad",
+    };
+
+    let screenspace_quad_pso: PipelineStateObject = create_pso(&graphics_layer.device, pso_desc);
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
@@ -117,156 +149,58 @@ fn main() {
         );
 
         let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
-        unsafe {
-            let frame_data: &CpuRenderFrameData =
-                &cpu_render_frame_data[draw_frame_number as usize % cpu_render_frame_data.len()];
+        let frame_data: &CpuRenderFrameData =
+            &cpu_render_frame_data[draw_frame_number as usize % cpu_render_frame_data.len()];
 
-            let constant_buffer = frame_data
-                .frame_constant_buffer
-                .native_buffer
-                .as_mut()
-                .unwrap();
+        let mut gpu_heap = LinearAllocator {
+            gpu_data: map_gpu_buffer(&frame_data.frame_constant_buffer, &graphics_layer),
+            state: LinearAllocatorState { used_bytes: 0 },
+        };
 
-            let mut gpu_heap = LinearAllocator {
-                gpu_data: map_gpu_buffer(
-                    constant_buffer,
-                    graphics_layer.immediate_context.as_ref().unwrap(),
-                ),
-                state: LinearAllocatorState { used_bytes: 0 },
-            };
+        begin_render_pass(
+            &mut graphics_layer.graphics_command_list,
+            color,
+            &graphics_layer.backbuffer_rtv,
+        );
 
-            let command_context = graphics_layer.command_context.as_ref().unwrap();
+        let cycle_length_seconds = 2.0;
 
-            command_context.ClearRenderTargetView(graphics_layer.backbuffer_rtv, &color);
+        let color = Float3 {
+            x: f32::sin(2.0 * std::f32::consts::PI * (timer_draw / cycle_length_seconds)) * 0.5
+                + 0.5,
+            y: 0.0,
+            z: 0.0,
+        };
 
-            let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
-                Height: 400.0,
-                Width: 400.0,
-                MinDepth: 0.0,
-                MaxDepth: 1.0,
-                TopLeftX: 0.0,
-                TopLeftY: 0.0,
-            };
+        // allocate the constants for this draw call
+        let obj1_alloc = HeapAlloc::new(
+            ScreenSpaceQuadData {
+                color,
+                padding: 0.0,
+                scale: Float2 { x: 0.5, y: 0.5 },
+                position: Float2 { x: 0.0, y: 0.0 },
+            },
+            &gpu_heap.gpu_data,
+            &mut gpu_heap.state,
+        );
 
-            // set viewport for the output window
-            command_context.RSSetViewports(1, &viewport);
+        bind_pso(
+            &mut graphics_layer.graphics_command_list,
+            &screenspace_quad_pso,
+        );
 
-            // bind backbuffer as render target
-            let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] =
-                [graphics_layer.backbuffer_rtv];
-            command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
+        bind_constant(&mut graphics_layer.graphics_command_list, 0, &obj1_alloc);
 
-            let cycle_length_seconds = 2.0;
+        draw_vertices(&mut graphics_layer.graphics_command_list, 4);
 
-            let color = Float3 {
-                x: f32::sin(2.0 * std::f32::consts::PI * (timer_draw / cycle_length_seconds)) * 0.5
-                    + 0.5,
-                y: 0.0,
-                z: 0.0,
-            };
+        // unmap the gpu buffer
+        // from this point onwards we are unable to allocate further memory
+        unmap_gpu_buffer(gpu_heap.gpu_data, &graphics_layer);
 
-            // allocate the constants for this draw call
-            let obj1_alloc: HeapAlloc<ScreenSpaceQuadData> = HeapAlloc::new(
-                ScreenSpaceQuadData {
-                    color,
-                    padding: 0.0,
-                    scale: Float2 { x: 0.5, y: 0.5 },
-                    position: Float2 { x: 0.0, y: 0.0 },
-                },
-                &gpu_heap.gpu_data,
-                &mut gpu_heap.state,
-            );
+        execute_command_list(&graphics_layer, &graphics_layer.graphics_command_list);
 
-            // bind the shaders
-            command_context.VSSetShader(graphics_layer.vertex_shader, std::ptr::null_mut(), 0);
-            command_context.PSSetShader(graphics_layer.pixel_shader, std::ptr::null_mut(), 0);
-
-            let first_constant: u32 = obj1_alloc.first_constant_offset;
-            let num_constants: u32 = obj1_alloc.num_constants;
-
-            let buffers: [*mut ID3D11Buffer; 1] = [std::ptr::null_mut()];
-
-            command_context.VSSetConstantBuffers(
-                0, // which slot to bind to
-                1, // the number of buffers to bind
-                buffers.as_ptr(),
-            );
-
-            command_context.PSSetConstantBuffers(
-                0, // which slot to bind to
-                1, // the number of buffers to bind
-                buffers.as_ptr(),
-            );
-
-            command_context.PSSetConstantBuffers1(
-                0,                                               // which slot to bind to
-                1,                                               // the number of buffers to bind
-                &frame_data.frame_constant_buffer.native_buffer, // the buffer to bind
-                &first_constant,
-                &num_constants,
-            );
-
-            command_context.VSSetConstantBuffers1(
-                0,                                               // which slot to bind to
-                1,                                               // the number of buffers to bind
-                &frame_data.frame_constant_buffer.native_buffer, // the buffer to bind
-                &first_constant,
-                &num_constants,
-            );
-
-            // we are drawing 4 vertices using a triangle strip topology
-            command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-            command_context.Draw(4, 0);
-
-            // unmap the gpu buffer
-            // from this point onwards we are unable to allocate further memory
-            unmap_gpu_buffer(
-                gpu_heap.gpu_data,
-                graphics_layer.immediate_context.as_ref().unwrap(),
-            );
-
-            let mut command_list: *mut ID3D11CommandList = std::ptr::null_mut();
-
-            let result = command_context.FinishCommandList(0, &mut command_list);
-
-            assert!(result == winapi::shared::winerror::S_OK);
-
-            graphics_layer
-                .immediate_context
-                .as_ref()
-                .unwrap()
-                .ExecuteCommandList(command_list, 1);
-
-            // once the command list is executed, we can release it
-            command_list.as_ref().unwrap().Release();
-        }
-
-        unsafe {
-            graphics_layer.swapchain.as_ref().unwrap().Present(1, 0);
-        }
+        present_swapchain(&graphics_layer);
 
         draw_frame_number += 1;
-    }
-
-    unsafe {
-        for frame_data in &cpu_render_frame_data {
-            frame_data
-                .frame_constant_buffer
-                .native_buffer
-                .as_ref()
-                .unwrap()
-                .Release();
-        }
-
-        graphics_layer.backbuffer_rtv.as_ref().unwrap().Release();
-        graphics_layer
-            .backbuffer_texture
-            .as_ref()
-            .unwrap()
-            .Release();
-
-        graphics_layer.immediate_context.as_ref().unwrap().Release();
-        graphics_layer.swapchain.as_ref().unwrap().Release();
-        graphics_layer.device.as_ref().unwrap().Release();
     }
 }
