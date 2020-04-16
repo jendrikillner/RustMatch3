@@ -19,3 +19,15 @@ Constraints
 What the final game might look like
 
 ![Final Game Target](https://www.jendrikillner.com/img/posts/rust-game-series-match3/game_design.png "Final Game Target")
+
+ ## Rust Game Series
+- [Part 1 - Overview](https://www.jendrikillner.com/post/rust-game-part-1/)
+- [Part 2 - Win32 Window](https://www.jendrikillner.com/post/rust-game-part-2/)
+- [Part 3 - Unlock the Message Loop](https://www.jendrikillner.com/post/rust-game-part-3/)
+- [Part 4 - Removing global state](https://www.jendrikillner.com/post/rust-game-part-4/)
+- [Part 5 - D3D11 Device and Swap Chain creation](https://www.jendrikillner.com/post/rust-game-part-5/)
+- [Part 6 - Drawing a procedural quad](https://www.jendrikillner.com/post/rust-game-part-6/)
+- [Part 7 - Rust lifetimes and GPU Constant Allocator](https://www.jendrikillner.com/post/rust-game-part-7/)
+- [Part 8 - Using Visual Studio](https://www.jendrikillner.com/post/rust-game-part-8/)
+- [Part 9 - Rust compilation structure](https://www.jendrikillner.com/post/rust-game-part-9/)
+- [Part 10 - API cleanup and resource lifetime management](https://www.jendrikillner.com/post/rust-game-part-10/)
