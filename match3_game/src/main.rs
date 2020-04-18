@@ -116,6 +116,14 @@ fn main() {
                     println!("mouse:left up");
                 }
 
+				WindowMessages::MouseFocusGained => {
+					println!("mouse:focus gained");
+				}
+
+				WindowMessages::MouseFocusLost => {
+					println!("mouse:focus lost");
+				}
+
                 WindowMessages::WindowClosed => {
                     should_game_close = true;
                 }

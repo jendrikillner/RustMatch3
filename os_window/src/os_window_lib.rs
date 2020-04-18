@@ -21,6 +21,10 @@ pub enum WindowMessages {
     MousePositionChanged(MousePositionChangedData),
     MouseLeftButtonDown,
     MouseLeftButtonUp,
+	// called when the window leaves the visible space of the window
+	// want to make sure to end all active tracking events
+	MouseFocusLost, 
+	MouseFocusGained,
 
     // window related messages
     WindowCreated(WindowCreatedData),
@@ -68,15 +72,28 @@ unsafe extern "system" fn window_proc(
 			TrackMouseEvent(&mut tme );
 
 			window_state.is_tracking = true;
+
+			window_state
+				.message_sender
+				.send(WindowMessages::MouseFocusGained)
+				.unwrap();
 		}
     }
 
 	if msg == WM_MOUSELEAVE {
 
-		 let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+		let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
         let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
 
-		window_state.is_tracking = false;
+		if window_state.is_tracking
+		{
+			window_state.is_tracking = false;
+
+			window_state
+				.message_sender
+				.send(WindowMessages::MouseFocusLost)
+				.unwrap();
+		}
 	}
 
     if msg == WM_LBUTTONDOWN {
