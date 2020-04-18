@@ -121,15 +121,9 @@ fn main() {
 
         accumulator += frame_time;
 
-        println!("frame time {}", frame_time);
-
         current_time = new_time;
 
         while accumulator >= dt {
-            println!(
-                "update {} accumulator {} dt {} ",
-                update_frame_number, accumulator, dt
-            );
             timer_update += dt;
 
             // update the game for a fixed number of steps
@@ -143,10 +137,6 @@ fn main() {
         let timer_draw = timer_update + accumulator;
 
         // draw
-        println!(
-            "draw {} subframe_blend {}",
-            draw_frame_number, subframe_blend
-        );
 
         let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
         let frame_data: &CpuRenderFrameData =
