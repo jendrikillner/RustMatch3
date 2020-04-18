@@ -104,6 +104,18 @@ fn main() {
 
         while let Some(x) = process_window_messages(&main_window) {
             match x {
+                WindowMessages::MousePositionChanged(pos) => {
+                    println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+                }
+
+                WindowMessages::MouseLeftButtonDown => {
+                    println!("mouse:left down");
+                }
+
+                WindowMessages::MouseLeftButtonUp => {
+                    println!("mouse:left up");
+                }
+
                 WindowMessages::WindowClosed => {
                     should_game_close = true;
                 }

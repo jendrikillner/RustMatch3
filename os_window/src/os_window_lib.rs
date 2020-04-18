@@ -11,7 +11,18 @@ pub struct WindowCreatedData {
 
 unsafe impl std::marker::Send for WindowCreatedData {}
 
+pub struct MousePositionChangedData {
+    pub x: i32,
+    pub y: i32,
+}
+
 pub enum WindowMessages {
+    // mouse related messages
+    MousePositionChanged(MousePositionChangedData),
+    MouseLeftButtonDown,
+    MouseLeftButtonUp,
+
+    // window related messages
     WindowCreated(WindowCreatedData),
     WindowClosed,
 }
@@ -31,6 +42,41 @@ unsafe extern "system" fn window_proc(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
+    if msg == WM_MOUSEMOVE {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        let x = winapi::shared::windowsx::GET_X_LPARAM(l_param);
+        let y = winapi::shared::windowsx::GET_Y_LPARAM(l_param);
+
+        window_state
+            .message_sender
+            .send(WindowMessages::MousePositionChanged(
+                MousePositionChangedData { x, y },
+            ))
+            .unwrap();
+    }
+
+    if msg == WM_LBUTTONDOWN {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        window_state
+            .message_sender
+            .send(WindowMessages::MouseLeftButtonDown)
+            .unwrap();
+    }
+
+    if msg == WM_LBUTTONUP {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        window_state
+            .message_sender
+            .send(WindowMessages::MouseLeftButtonUp)
+            .unwrap();
+    }
+
     if msg == WM_CREATE {
         // retrieve the message struct that contains the creation parameters
         let create_struct = l_param as *mut winapi::um::winuser::CREATESTRUCTW;
