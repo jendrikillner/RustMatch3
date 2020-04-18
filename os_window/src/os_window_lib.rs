@@ -34,6 +34,7 @@ pub struct Window {
 
 pub struct WindowThreadState {
     pub message_sender: std::sync::mpsc::Sender<WindowMessages>,
+	pub is_tracking : bool
 }
 
 unsafe extern "system" fn window_proc(
@@ -55,7 +56,28 @@ unsafe extern "system" fn window_proc(
                 MousePositionChangedData { x, y },
             ))
             .unwrap();
+
+		if !window_state.is_tracking{
+			let mut tme = TRACKMOUSEEVENT {
+				dwFlags : TME_LEAVE,
+				hwndTrack : h_wnd,
+				dwHoverTime : 0,
+				cbSize : core::mem::size_of::<TRACKMOUSEEVENT>() as u32
+			};
+
+			TrackMouseEvent(&mut tme );
+
+			window_state.is_tracking = true;
+		}
     }
+
+	if msg == WM_MOUSELEAVE {
+
+		 let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+		window_state.is_tracking = false;
+	}
 
     if msg == WM_LBUTTONDOWN {
         let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
@@ -118,6 +140,7 @@ pub fn create_window() -> Result<Window, ()> {
     std::thread::spawn(move || {
         let mut window_state = WindowThreadState {
             message_sender: channel_sender,
+			is_tracking : false,
         };
 
         unsafe {
