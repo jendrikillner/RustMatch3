@@ -38,10 +38,9 @@ fn parse_cmdline() -> CommandLineArgs {
     let mut enable_debug_device = false;
 
     for argument in std::env::args() {
-
-		// make sure we always compare agsinst the lowercase version so that casing doesn't matter
-		let mut arg = argument;
-		arg.make_ascii_lowercase();
+        // make sure we always compare agsinst the lowercase version so that casing doesn't matter
+        let mut arg = argument;
+        arg.make_ascii_lowercase();
 
         if arg == "-debugdevice" {
             enable_debug_device = true;
@@ -116,13 +115,13 @@ fn main() {
                     println!("mouse:left up");
                 }
 
-				WindowMessages::MouseFocusGained => {
-					println!("mouse:focus gained");
-				}
+                WindowMessages::MouseFocusGained => {
+                    println!("mouse:focus gained");
+                }
 
-				WindowMessages::MouseFocusLost => {
-					println!("mouse:focus lost");
-				}
+                WindowMessages::MouseFocusLost => {
+                    println!("mouse:focus lost");
+                }
 
                 WindowMessages::WindowClosed => {
                     should_game_close = true;

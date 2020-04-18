@@ -21,10 +21,10 @@ pub enum WindowMessages {
     MousePositionChanged(MousePositionChangedData),
     MouseLeftButtonDown,
     MouseLeftButtonUp,
-	// called when the window leaves the visible space of the window
-	// want to make sure to end all active tracking events
-	MouseFocusLost, 
-	MouseFocusGained,
+    // called when the window leaves the visible space of the window
+    // want to make sure to end all active tracking events
+    MouseFocusLost,
+    MouseFocusGained,
 
     // window related messages
     WindowCreated(WindowCreatedData),
@@ -38,7 +38,7 @@ pub struct Window {
 
 pub struct WindowThreadState {
     pub message_sender: std::sync::mpsc::Sender<WindowMessages>,
-	pub is_tracking : bool
+    pub is_tracking: bool,
 }
 
 unsafe extern "system" fn window_proc(
@@ -61,40 +61,38 @@ unsafe extern "system" fn window_proc(
             ))
             .unwrap();
 
-		if !window_state.is_tracking{
-			let mut tme = TRACKMOUSEEVENT {
-				dwFlags : TME_LEAVE,
-				hwndTrack : h_wnd,
-				dwHoverTime : 0,
-				cbSize : core::mem::size_of::<TRACKMOUSEEVENT>() as u32
-			};
+        if !window_state.is_tracking {
+            let mut tme = TRACKMOUSEEVENT {
+                dwFlags: TME_LEAVE,
+                hwndTrack: h_wnd,
+                dwHoverTime: 0,
+                cbSize: core::mem::size_of::<TRACKMOUSEEVENT>() as u32,
+            };
 
-			TrackMouseEvent(&mut tme );
+            TrackMouseEvent(&mut tme);
 
-			window_state.is_tracking = true;
+            window_state.is_tracking = true;
 
-			window_state
-				.message_sender
-				.send(WindowMessages::MouseFocusGained)
-				.unwrap();
-		}
+            window_state
+                .message_sender
+                .send(WindowMessages::MouseFocusGained)
+                .unwrap();
+        }
     }
 
-	if msg == WM_MOUSELEAVE {
-
-		let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+    if msg == WM_MOUSELEAVE {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
         let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
 
-		if window_state.is_tracking
-		{
-			window_state.is_tracking = false;
+        if window_state.is_tracking {
+            window_state.is_tracking = false;
 
-			window_state
-				.message_sender
-				.send(WindowMessages::MouseFocusLost)
-				.unwrap();
-		}
-	}
+            window_state
+                .message_sender
+                .send(WindowMessages::MouseFocusLost)
+                .unwrap();
+        }
+    }
 
     if msg == WM_LBUTTONDOWN {
         let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
@@ -157,7 +155,7 @@ pub fn create_window() -> Result<Window, ()> {
     std::thread::spawn(move || {
         let mut window_state = WindowThreadState {
             message_sender: channel_sender,
-			is_tracking : false,
+            is_tracking: false,
         };
 
         unsafe {
