@@ -149,7 +149,7 @@ unsafe extern "system" fn window_proc(
     DefWindowProcW(h_wnd, msg, w_param, l_param)
 }
 
-pub fn create_window() -> Result<Window, ()> {
+pub fn create_window( size_x : i32, size_y : i32 ) -> Result<Window, ()> {
     let (channel_sender, channel_receiver) = std::sync::mpsc::channel();
 
     std::thread::spawn(move || {
@@ -188,8 +188,8 @@ pub fn create_window() -> Result<Window, ()> {
                 WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
                 0,
                 0,
-                400,
-                400,
+                size_x,
+                size_y,
                 0 as HWND,
                 0 as HMENU,
                 0 as HINSTANCE,

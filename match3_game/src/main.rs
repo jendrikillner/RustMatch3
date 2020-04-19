@@ -65,7 +65,7 @@ fn main() {
     let mut should_game_close = false;
 
     // afterwards open a window we can render into
-    let main_window: Window = create_window().unwrap();
+    let main_window: Window = create_window( 540, 960 ).unwrap();
 
     let mut graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
