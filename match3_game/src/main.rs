@@ -52,6 +52,13 @@ fn parse_cmdline() -> CommandLineArgs {
     }
 }
 
+// data for each displayed frame
+// frame = "A piece of data that is processed and ultimately displayed on screen"
+struct FrameParams {
+    // the state of the grid
+    grid: [[bool; 5]; 6],
+}
+
 fn main() {
     let args: CommandLineArgs = parse_cmdline();
 
@@ -81,6 +88,19 @@ fn main() {
         },
     ];
 
+    // create the initial state for the the frame params
+    // frame params are passing through the following stages
+    // update
+    // cpu render
+    // gpu render
+    let mut frame_params0 = FrameParams {
+        grid: { [[false; 5]; 6] },
+    };
+
+    let mut frame_params1 = FrameParams {
+        grid: { [[false; 5]; 6] },
+    };
+
     // load the PSO required to draw the quad onto the screen
 
     let pso_desc = PipelineStateObjectDesc {
@@ -94,42 +114,18 @@ fn main() {
 
     let mut current_time = std::time::Instant::now();
     let mut draw_frame_number: u64 = 0;
+    let mut update_frame_number: u64 = 0;
 
     let mut timer_update = 0.0;
 
     while !should_game_close {
         let new_time = std::time::Instant::now();
 
-        while let Some(x) = process_window_messages(&main_window) {
-            match x {
-                WindowMessages::MousePositionChanged(pos) => {
-                    println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
-                }
-
-                WindowMessages::MouseLeftButtonDown => {
-                    println!("mouse:left down");
-                }
-
-                WindowMessages::MouseLeftButtonUp => {
-                    println!("mouse:left up");
-                }
-
-                WindowMessages::MouseFocusGained => {
-                    println!("mouse:focus gained");
-                }
-
-                WindowMessages::MouseFocusLost => {
-                    println!("mouse:focus lost");
-                }
-
-                WindowMessages::WindowClosed => {
-                    should_game_close = true;
-                }
-                WindowMessages::WindowCreated(_x) => {
-                    panic!();
-                } // this should never happen
-            }
-        }
+        // at the start of the frame we allocate a new FrameParam
+        // frame params are created during updated, passing through the following stages
+        // update
+        // cpu render
+        // gpu render
 
         // calculate how much time has passed
         let frame_time = f32::min(
@@ -141,11 +137,69 @@ fn main() {
 
         current_time = new_time;
 
+        // for now just sleep
+        // don't want to waste CPU resources rendering more frames
+        if accumulator < dt {
+            let sleep_duration = dt - accumulator;
+
+            std::thread::sleep(std::time::Duration::from_secs_f32(sleep_duration));
+        }
+
+        accumulator = dt;
+
+        let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
+            (&frame_params1, &mut frame_params0)
+        } else {
+            (&frame_params0, &mut frame_params1)
+        };
+
+        let rnd_row = 3;
+        let rnd_col = 4;
+
+        frame_params.grid[rnd_row][rnd_col] = prev_frame_params.grid[rnd_row][rnd_col];
+
         while accumulator >= dt {
             timer_update += dt;
 
             // update the game for a fixed number of steps
             accumulator -= dt;
+
+            // update the game
+
+            while let Some(x) = process_window_messages(&main_window) {
+                match x {
+                    WindowMessages::MousePositionChanged(pos) => {
+                        println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+                    }
+
+                    WindowMessages::MouseLeftButtonDown => {
+                        println!("mouse:left down");
+
+                        frame_params.grid[rnd_row][rnd_col] = true;
+                    }
+
+                    WindowMessages::MouseLeftButtonUp => {
+                        println!("mouse:left up");
+                    }
+
+                    WindowMessages::MouseFocusGained => {
+                        println!("mouse:focus gained");
+                    }
+
+                    WindowMessages::MouseFocusLost => {
+                        println!("mouse:focus lost");
+                    }
+
+                    WindowMessages::WindowClosed => {
+                        should_game_close = true;
+                    }
+                    WindowMessages::WindowCreated(_x) => {
+                        panic!();
+                    } // this should never happen
+                }
+            }
+
+            update_frame_number += 1;
         }
 
         // draw the game
@@ -182,7 +236,15 @@ fn main() {
         // allocate the constants for this draw call
         let obj1_alloc = HeapAlloc::new(
             ScreenSpaceQuadData {
-                color,
+                color: if !frame_params.grid[rnd_row][rnd_col] {
+                    color
+                } else {
+                    Float3 {
+                        x: 0.0,
+                        y: 1.0,
+                        z: 0.0,
+                    }
+                },
                 padding: 0.0,
                 scale: Float2 { x: 0.5, y: 0.5 },
                 position: Float2 { x: 0.0, y: 0.0 },
