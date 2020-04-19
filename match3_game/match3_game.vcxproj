@@ -107,6 +107,9 @@
     <None Include="..\os_window\src\os_window_lib.rs" />
     <None Include="src\main.rs" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src_data\shaders\screen_space_quad.hlsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
