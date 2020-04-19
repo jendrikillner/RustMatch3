@@ -94,7 +94,6 @@ fn main() {
 
     let mut current_time = std::time::Instant::now();
     let mut draw_frame_number: u64 = 0;
-    let mut update_frame_number: u64 = 0;
 
     let mut timer_update = 0.0;
 
@@ -147,11 +146,10 @@ fn main() {
 
             // update the game for a fixed number of steps
             accumulator -= dt;
-            update_frame_number += 1;
         }
 
         // draw the game
-        let subframe_blend = accumulator / dt;
+        let _subframe_blend = accumulator / dt;
 
         let timer_draw = timer_update + accumulator;
 
