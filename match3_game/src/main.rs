@@ -116,8 +116,6 @@ fn main() {
     let mut draw_frame_number: u64 = 0;
     let mut update_frame_number: u64 = 0;
 
-    let mut timer_update = 0.0;
-
     while !should_game_close {
         let new_time = std::time::Instant::now();
 
@@ -153,14 +151,12 @@ fn main() {
             (&frame_params0, &mut frame_params1)
         };
 
-        let rnd_row = 3;
+        let rnd_row = 5;
         let rnd_col = 4;
 
         frame_params.grid[rnd_row][rnd_col] = prev_frame_params.grid[rnd_row][rnd_col];
 
         while accumulator >= dt {
-            timer_update += dt;
-
             // update the game for a fixed number of steps
             accumulator -= dt;
 
@@ -203,9 +199,6 @@ fn main() {
         }
 
         // draw the game
-        let _subframe_blend = accumulator / dt;
-
-        let timer_draw = timer_update + accumulator;
 
         // draw
 
@@ -224,43 +217,47 @@ fn main() {
             &graphics_layer.backbuffer_rtv,
         );
 
-        let cycle_length_seconds = 2.0;
-
-        let color = Float3 {
-            x: f32::sin(2.0 * std::f32::consts::PI * (timer_draw / cycle_length_seconds)) * 0.5
-                + 0.5,
-            y: 0.0,
-            z: 0.0,
-        };
-
-        // allocate the constants for this draw call
-        let obj1_alloc = HeapAlloc::new(
-            ScreenSpaceQuadData {
-                color: if !frame_params.grid[rnd_row][rnd_col] {
-                    color
-                } else {
-                    Float3 {
-                        x: 0.0,
-                        y: 1.0,
-                        z: 0.0,
-                    }
-                },
-                padding: 0.0,
-                scale: Float2 { x: 0.5, y: 0.5 },
-                position: Float2 { x: 0.0, y: 0.0 },
-            },
-            &gpu_heap.gpu_data,
-            &mut gpu_heap.state,
-        );
-
         bind_pso(
             &mut graphics_layer.graphics_command_list,
             &screenspace_quad_pso,
         );
 
-        bind_constant(&mut graphics_layer.graphics_command_list, 0, &obj1_alloc);
+		for (y, row) in frame_params.grid.iter().enumerate() {
+			for (x, column) in row.iter().enumerate() {
 
-        draw_vertices(&mut graphics_layer.graphics_command_list, 4);
+
+				let x_offset_in_pixels = (x as f32) * 180.0;
+				let y_offset_in_pixels = (y as f32) * 180.0;
+
+				// allocate the constants for this draw call
+				let obj1_alloc = HeapAlloc::new(
+					ScreenSpaceQuadData {
+						color: if !column {
+							Float3 {
+								x: 1.0,
+								y: 0.0,
+								z: 0.0,
+							}
+						} else {
+							Float3 {
+								x: 0.0,
+								y: 1.0,
+								z: 0.0,
+							}
+						},
+						padding: 0.0,
+						scale: Float2 { x: (90.0/540.0), y: (90.0/960.0) },
+						position: Float2 { x: (90.0/540.0) * -4.0 + x_offset_in_pixels / 540.0, y: (90.0/960.0) * 6.0 - y_offset_in_pixels/960.0 },
+					},
+					&gpu_heap.gpu_data,
+					&mut gpu_heap.state,
+				);
+
+				bind_constant(&mut graphics_layer.graphics_command_list, 0, &obj1_alloc);
+
+		        draw_vertices(&mut graphics_layer.graphics_command_list, 4);
+			}
+		}
 
         // unmap the gpu buffer
         // from this point onwards we are unable to allocate further memory
