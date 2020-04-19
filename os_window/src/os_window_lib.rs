@@ -54,14 +54,7 @@ unsafe extern "system" fn window_proc(
         let x = winapi::shared::windowsx::GET_X_LPARAM(l_param);
         let y = winapi::shared::windowsx::GET_Y_LPARAM(l_param);
 
-        window_state
-            .message_sender
-            .send(WindowMessages::MousePositionChanged(
-                MousePositionChangedData { x, y },
-            ))
-            .unwrap();
-
-        if !window_state.is_tracking {
+		if !window_state.is_tracking {
             let mut tme = TRACKMOUSEEVENT {
                 dwFlags: TME_LEAVE,
                 hwndTrack: h_wnd,
@@ -78,6 +71,13 @@ unsafe extern "system" fn window_proc(
                 .send(WindowMessages::MouseFocusGained)
                 .unwrap();
         }
+
+        window_state
+            .message_sender
+            .send(WindowMessages::MousePositionChanged(
+                MousePositionChangedData { x, y },
+            ))
+            .unwrap();
     }
 
     if msg == WM_MOUSELEAVE {
