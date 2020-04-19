@@ -54,7 +54,7 @@ unsafe extern "system" fn window_proc(
         let x = winapi::shared::windowsx::GET_X_LPARAM(l_param);
         let y = winapi::shared::windowsx::GET_Y_LPARAM(l_param);
 
-		if !window_state.is_tracking {
+        if !window_state.is_tracking {
             let mut tme = TRACKMOUSEEVENT {
                 dwFlags: TME_LEAVE,
                 hwndTrack: h_wnd,
