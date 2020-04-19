@@ -211,6 +211,8 @@ impl Drop for GraphicsCommandList<'_> {
 
 pub struct RenderTargetView<'a> {
     pub native_view: &'a mut winapi::um::d3d11::ID3D11RenderTargetView,
+	width : i32,
+	height : i32
 }
 
 impl Drop for RenderTargetView<'_> {
@@ -443,6 +445,13 @@ pub fn create_device_graphics_layer<'a>(
 
         set_debug_name(command_context.as_ref().unwrap(), "Deferred Context");
 
+		let mut rect = winapi::shared::windef::RECT { bottom: 0, left: 0, right: 0, top: 0 };
+
+		winapi::um::winuser::GetClientRect(
+		  hwnd,
+		  &mut rect
+		);
+
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
                 native: d3d11_device.as_mut().unwrap(),
@@ -453,6 +462,8 @@ pub fn create_device_graphics_layer<'a>(
             backbuffer_texture,
             backbuffer_rtv: RenderTargetView {
                 native_view: backbuffer_rtv.as_mut().unwrap(),
+				width : rect.right,
+				height: rect.bottom,
             },
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
@@ -550,8 +561,8 @@ pub fn begin_render_pass(
         command_context.ClearRenderTargetView(rtv_mut, &clear_color);
 
         let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
-            Height: 400.0,
-            Width: 400.0,
+            Height: rtv.height as f32,
+            Width:  rtv.width as f32,
             MinDepth: 0.0,
             MaxDepth: 1.0,
             TopLeftX: 0.0,
