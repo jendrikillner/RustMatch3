@@ -149,7 +149,7 @@ unsafe extern "system" fn window_proc(
     DefWindowProcW(h_wnd, msg, w_param, l_param)
 }
 
-pub fn create_window( size_x : i32, size_y : i32 ) -> Result<Window, ()> {
+pub fn create_window(size_x: i32, size_y: i32) -> Result<Window, ()> {
     let (channel_sender, channel_receiver) = std::sync::mpsc::channel();
 
     std::thread::spawn(move || {
@@ -181,7 +181,7 @@ pub fn create_window( size_x : i32, size_y : i32 ) -> Result<Window, ()> {
 
             assert!(error_code != 0, "failed to register the window class");
 
-			let mut window_rect = winapi::shared::windef::RECT {
+            let mut window_rect = winapi::shared::windef::RECT {
                 bottom: size_y,
                 left: 0,
                 right: size_x,
