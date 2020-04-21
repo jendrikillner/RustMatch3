@@ -54,7 +54,6 @@ fn parse_cmdline() -> CommandLineArgs {
 
 // data for each displayed frame
 // frame = "A piece of data that is processed and ultimately displayed on screen"
-#[derive(Clone)]
 struct FrameParams {
     game_state_stack: std::vec::Vec<GameStates>,
 
@@ -204,13 +203,16 @@ fn main() {
     // cpu render
     // gpu render
     let mut frame_params0 = FrameParams {
+        m_next_game_state: None,
+        game_state_stack: Vec::new(),
+    };
+
+    let mut frame_params1 = FrameParams {
         m_next_game_state: Some(GameStates::Gameplay(GameplayFrameParams {
             grid: { [[false; 5]; 6] },
         })),
         game_state_stack: Vec::new(),
     };
-
-    let mut frame_params1 = frame_params0.clone();
 
     // load the PSO required to draw the quad onto the screen
 
@@ -262,8 +264,9 @@ fn main() {
             (&frame_params0, &mut frame_params1)
         };
 
-        // clone the previous frame state as starting point for the next frame
-        *frame_params = prev_frame_params.clone();
+		// copy state you want to move from the last into the current state
+		frame_params.m_next_game_state = prev_frame_params.m_next_game_state;
+		frame_params.game_state_stack = prev_frame_params.game_state_stack.clone();
 
         while accumulator >= dt {
             // update the game for a fixed number of steps
