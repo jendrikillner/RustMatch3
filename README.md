@@ -31,3 +31,4 @@ What the final game might look like
 - [Part 8 - Using Visual Studio](https://www.jendrikillner.com/post/rust-game-part-8/)
 - [Part 9 - Rust compilation structure](https://www.jendrikillner.com/post/rust-game-part-9/)
 - [Part 10 - API cleanup and resource lifetime management](https://www.jendrikillner.com/post/rust-game-part-10/)
+- [Part 11 - Mouse Input](https://www.jendrikillner.com/post/rust-game-part-11/)
