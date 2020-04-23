@@ -38,10 +38,9 @@ fn parse_cmdline() -> CommandLineArgs {
     let mut enable_debug_device = false;
 
     for argument in std::env::args() {
-
-		// make sure we always compare agsinst the lowercase version so that casing doesn't matter
-		let mut arg = argument;
-		arg.make_ascii_lowercase();
+        // make sure we always compare agsinst the lowercase version so that casing doesn't matter
+        let mut arg = argument;
+        arg.make_ascii_lowercase();
 
         if arg == "-debugdevice" {
             enable_debug_device = true;
@@ -95,7 +94,6 @@ fn main() {
 
     let mut current_time = std::time::Instant::now();
     let mut draw_frame_number: u64 = 0;
-    let mut update_frame_number: u64 = 0;
 
     let mut timer_update = 0.0;
 
@@ -104,6 +102,26 @@ fn main() {
 
         while let Some(x) = process_window_messages(&main_window) {
             match x {
+                WindowMessages::MousePositionChanged(pos) => {
+                    println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+                }
+
+                WindowMessages::MouseLeftButtonDown => {
+                    println!("mouse:left down");
+                }
+
+                WindowMessages::MouseLeftButtonUp => {
+                    println!("mouse:left up");
+                }
+
+                WindowMessages::MouseFocusGained => {
+                    println!("mouse:focus gained");
+                }
+
+                WindowMessages::MouseFocusLost => {
+                    println!("mouse:focus lost");
+                }
+
                 WindowMessages::WindowClosed => {
                     should_game_close = true;
                 }
@@ -121,32 +139,21 @@ fn main() {
 
         accumulator += frame_time;
 
-        println!("frame time {}", frame_time);
-
         current_time = new_time;
 
         while accumulator >= dt {
-            println!(
-                "update {} accumulator {} dt {} ",
-                update_frame_number, accumulator, dt
-            );
             timer_update += dt;
 
             // update the game for a fixed number of steps
             accumulator -= dt;
-            update_frame_number += 1;
         }
 
         // draw the game
-        let subframe_blend = accumulator / dt;
+        let _subframe_blend = accumulator / dt;
 
         let timer_draw = timer_update + accumulator;
 
         // draw
-        println!(
-            "draw {} subframe_blend {}",
-            draw_frame_number, subframe_blend
-        );
 
         let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
         let frame_data: &CpuRenderFrameData =

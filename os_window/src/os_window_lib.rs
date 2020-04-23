@@ -11,7 +11,22 @@ pub struct WindowCreatedData {
 
 unsafe impl std::marker::Send for WindowCreatedData {}
 
+pub struct MousePositionChangedData {
+    pub x: i32,
+    pub y: i32,
+}
+
 pub enum WindowMessages {
+    // mouse related messages
+    MousePositionChanged(MousePositionChangedData),
+    MouseLeftButtonDown,
+    MouseLeftButtonUp,
+    // called when the window leaves the visible space of the window
+    // want to make sure to end all active tracking events
+    MouseFocusLost,
+    MouseFocusGained,
+
+    // window related messages
     WindowCreated(WindowCreatedData),
     WindowClosed,
 }
@@ -23,6 +38,7 @@ pub struct Window {
 
 pub struct WindowThreadState {
     pub message_sender: std::sync::mpsc::Sender<WindowMessages>,
+    pub is_tracking: bool,
 }
 
 unsafe extern "system" fn window_proc(
@@ -31,6 +47,73 @@ unsafe extern "system" fn window_proc(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
+    if msg == WM_MOUSEMOVE {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        let x = winapi::shared::windowsx::GET_X_LPARAM(l_param);
+        let y = winapi::shared::windowsx::GET_Y_LPARAM(l_param);
+
+        if !window_state.is_tracking {
+            let mut tme = TRACKMOUSEEVENT {
+                dwFlags: TME_LEAVE,
+                hwndTrack: h_wnd,
+                dwHoverTime: 0,
+                cbSize: core::mem::size_of::<TRACKMOUSEEVENT>() as u32,
+            };
+
+            TrackMouseEvent(&mut tme);
+
+            window_state.is_tracking = true;
+
+            window_state
+                .message_sender
+                .send(WindowMessages::MouseFocusGained)
+                .unwrap();
+        }
+
+        window_state
+            .message_sender
+            .send(WindowMessages::MousePositionChanged(
+                MousePositionChangedData { x, y },
+            ))
+            .unwrap();
+    }
+
+    if msg == WM_MOUSELEAVE {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        if window_state.is_tracking {
+            window_state.is_tracking = false;
+
+            window_state
+                .message_sender
+                .send(WindowMessages::MouseFocusLost)
+                .unwrap();
+        }
+    }
+
+    if msg == WM_LBUTTONDOWN {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        window_state
+            .message_sender
+            .send(WindowMessages::MouseLeftButtonDown)
+            .unwrap();
+    }
+
+    if msg == WM_LBUTTONUP {
+        let window_state_ptr = GetWindowLongPtrW(h_wnd, GWLP_USERDATA) as *mut WindowThreadState;
+        let window_state: &mut WindowThreadState = window_state_ptr.as_mut().unwrap();
+
+        window_state
+            .message_sender
+            .send(WindowMessages::MouseLeftButtonUp)
+            .unwrap();
+    }
+
     if msg == WM_CREATE {
         // retrieve the message struct that contains the creation parameters
         let create_struct = l_param as *mut winapi::um::winuser::CREATESTRUCTW;
@@ -72,6 +155,7 @@ pub fn create_window() -> Result<Window, ()> {
     std::thread::spawn(move || {
         let mut window_state = WindowThreadState {
             message_sender: channel_sender,
+            is_tracking: false,
         };
 
         unsafe {

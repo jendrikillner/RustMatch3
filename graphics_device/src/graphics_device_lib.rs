@@ -37,14 +37,14 @@ pub fn leak_check_release(
     );
 }
 
-fn set_debug_name( device_child : &ID3D11DeviceChild, name : &str ) {
-	unsafe {
+fn set_debug_name(device_child: &ID3D11DeviceChild, name: &str) {
+    unsafe {
         device_child.SetPrivateData(
             &WKPDID_D3DDebugObjectName,
             name.len() as u32,
             name.as_ptr() as *const winapi::ctypes::c_void,
         );
-	}
+    }
 }
 
 pub struct MappedGpuData<'a> {
@@ -187,7 +187,7 @@ pub fn create_constant_buffer(
     unsafe {
         set_debug_name(
             constant_buffer.as_ref().unwrap(),
-            format!("Constant Buffer - {}", debug_name).as_str()
+            format!("Constant Buffer - {}", debug_name).as_str(),
         );
     }
 
@@ -198,7 +198,7 @@ pub fn create_constant_buffer(
 
 pub struct GraphicsCommandList<'a> {
     pub command_context: *mut ID3D11DeviceContext1,
-	phantom : std::marker::PhantomData<&'a mut ID3D11DeviceContext1> // a marker to indicate that we are holding a reference to ID3D11DeviceContext1 evenso we store a pointer. This is required for lifetime tracking
+    phantom: std::marker::PhantomData<&'a mut ID3D11DeviceContext1>, // a marker to indicate that we are holding a reference to ID3D11DeviceContext1 evenso we store a pointer. This is required for lifetime tracking
 }
 
 impl Drop for GraphicsCommandList<'_> {
@@ -251,9 +251,21 @@ pub struct GraphicsDeviceLayer<'a> {
 impl Drop for GraphicsDeviceLayer<'_> {
     fn drop(&mut self) {
         unsafe {
-            leak_check_release( self.backbuffer_texture.as_ref().unwrap(), 0, self.device.debug_device);
-            leak_check_release( self.immediate_context.as_ref().unwrap(), 0, self.device.debug_device);
-            leak_check_release( self.swapchain.as_ref().unwrap(), 0, self.device.debug_device);
+            leak_check_release(
+                self.backbuffer_texture.as_ref().unwrap(),
+                0,
+                self.device.debug_device,
+            );
+            leak_check_release(
+                self.immediate_context.as_ref().unwrap(),
+                0,
+                self.device.debug_device,
+            );
+            leak_check_release(
+                self.swapchain.as_ref().unwrap(),
+                0,
+                self.device.debug_device,
+            );
         }
     }
 }
@@ -298,7 +310,7 @@ pub fn create_device_graphics_layer<'a>(
 
         set_debug_name(
             d3d11_immediate_context.as_ref().unwrap(),
-            "Immediate Context"
+            "Immediate Context",
         );
 
         let mut debug_device: *mut ID3D11Debug = std::ptr::null_mut();
@@ -444,7 +456,7 @@ pub fn create_device_graphics_layer<'a>(
             },
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
-				phantom: std::marker::PhantomData
+                phantom: std::marker::PhantomData,
             },
         })
     }
@@ -496,7 +508,7 @@ pub fn create_pso<'a>(
     unsafe {
         set_debug_name(
             vertex_shader.as_ref().unwrap(),
-            format!("PSO [{:?}] src-file: {1}", &desc, &vertex_shader_name).as_str()
+            format!("PSO [{:?}] src-file: {1}", &desc, &vertex_shader_name).as_str(),
         );
     }
 
@@ -514,7 +526,7 @@ pub fn create_pso<'a>(
     unsafe {
         set_debug_name(
             pixel_shader.as_ref().unwrap(),
-            format!("PSO [{:?}] src-file: {1}", &desc, &pixel_shader_name).as_str()
+            format!("PSO [{:?}] src-file: {1}", &desc, &pixel_shader_name).as_str(),
         );
     }
 
