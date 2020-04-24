@@ -53,43 +53,46 @@ fn parse_cmdline() -> CommandLineArgs {
 }
 
 enum GameStateType {
-	MainMenu,
-	Pause,
-	Gameplay,
+    //MainMenu,
+    //Pause,
+    Gameplay,
 }
 
-//struct GameplayStateStaticData {
-//}
+struct GameplayStateStaticData {}
 
 struct GameplayStateFrameData {
     // the state of the grid
     grid: [[bool; 5]; 6],
 }
 
-//enum GameStateData {
-//	Gameplay(GameplayStateStaticData)
-//}
+enum GameStateData {
+    Gameplay(GameplayStateStaticData),
+}
 
 //struct GameState {
-//	state_type : GameStateType,
 //	state_data : GameStateData,
 //}
 
 // data for each displayed frame
 // frame = "A piece of data that is processed and ultimately displayed on screen"
 struct FrameParams {
-	// cpu_render : CpuRenderFrameData,
-	
-	// if inside a gameplay
-	gameplay_data : Option<GameplayStateFrameData>,
+    // cpu_render : CpuRenderFrameData,
+
+    // if inside a gameplay
+    gameplay_data: Option<GameplayStateFrameData>,
 }
 
-fn pre_cpu_update_frame( frame_data : &mut GameplayStateFrameData, prev_frame_data : & GameplayStateFrameData )
-{
-	frame_data.grid = prev_frame_data.grid;
+fn pre_cpu_update_frame(
+    frame_data: &mut GameplayStateFrameData,
+    prev_frame_data: &GameplayStateFrameData,
+) {
+    frame_data.grid = prev_frame_data.grid;
 }
 
-fn update_gameplay_state(frame_params: &mut GameplayStateFrameData, messages: &Vec<WindowMessages>) {
+fn update_gameplay_state(
+    frame_params: &mut GameplayStateFrameData,
+    messages: &Vec<WindowMessages>,
+) {
     let rnd_row = 5;
     let rnd_col = 4;
 
@@ -214,16 +217,12 @@ fn main() {
         },
     ];
 
-	let mut frame_params0 = FrameParams {
-		gameplay_data : Some(GameplayStateFrameData {
-			grid: { [[false; 5]; 6] }
-		})
+    let mut frame_params0 = FrameParams {
+        gameplay_data: None,
     };
 
     let mut frame_params1 = FrameParams {
-		gameplay_data : Some(GameplayStateFrameData {
-			grid: { [[false; 5]; 6] }
-		})
+        gameplay_data: None,
     };
 
     // load the PSO required to draw the quad onto the screen
@@ -240,6 +239,9 @@ fn main() {
     let mut current_time = std::time::Instant::now();
     let mut draw_frame_number: u64 = 0;
     let mut update_frame_number: u64 = 0;
+
+    let mut game_state_stack: Vec<GameStateData> = Vec::new();
+    let mut next_game_state = Some(GameStateType::Gameplay);
 
     while !should_game_close {
         let new_time = std::time::Instant::now();
@@ -270,14 +272,41 @@ fn main() {
 
         accumulator = dt;
 
+        // we are starting a new frame, do we need to transition to a new state?
+        match next_game_state {
+            Some(x) => {
+                match x {
+                    GameStateType::Gameplay => {
+                        game_state_stack.push(GameStateData::Gameplay(GameplayStateStaticData {}));
+
+                        // also create the frame data in all instances of the frame data
+                        frame_params0.gameplay_data = Some(GameplayStateFrameData {
+                            grid: { [[false; 5]; 6] },
+                        });
+
+						frame_params1.gameplay_data = Some(GameplayStateFrameData {
+                            grid: { [[false; 5]; 6] },
+                        });
+                    }
+                }
+
+                // make sure to reset the state
+                next_game_state = None;
+            }
+
+            None => {}
+        }
+
         let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
             (&frame_params1, &mut frame_params0)
         } else {
             (&frame_params0, &mut frame_params1)
         };
 
-
-		pre_cpu_update_frame( frame_params.gameplay_data.as_mut().unwrap(), prev_frame_params.gameplay_data.as_ref().unwrap() );
+        pre_cpu_update_frame(
+            frame_params.gameplay_data.as_mut().unwrap(),
+            prev_frame_params.gameplay_data.as_ref().unwrap(),
+        );
 
         while accumulator >= dt {
             // update the game for a fixed number of steps
@@ -297,9 +326,10 @@ fn main() {
                 }
             }
 
-			let game_state_data : & mut GameplayStateFrameData = frame_params.gameplay_data.as_mut().unwrap();
+            let game_state_data: &mut GameplayStateFrameData =
+                frame_params.gameplay_data.as_mut().unwrap();
 
-			update_gameplay_state(game_state_data, &messages);
+            update_gameplay_state(game_state_data, &messages);
 
             update_frame_number += 1;
         }
@@ -313,9 +343,16 @@ fn main() {
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
-		let game_state_data : & GameplayStateFrameData = frame_params.gameplay_data.as_ref().unwrap();
+        let game_state_data: &GameplayStateFrameData = frame_params.gameplay_data.as_ref().unwrap();
 
-		draw_gameplay_state(game_state_data, & mut graphics_layer.graphics_command_list, & graphics_layer.backbuffer_rtv, &screenspace_quad_pso, & gpu_heap.gpu_data, &mut gpu_heap.state );
+        draw_gameplay_state(
+            game_state_data,
+            &mut graphics_layer.graphics_command_list,
+            &graphics_layer.backbuffer_rtv,
+            &screenspace_quad_pso,
+            &gpu_heap.gpu_data,
+            &mut gpu_heap.state,
+        );
 
         // unmap the gpu buffer
         // from this point onwards we are unable to allocate further memory
