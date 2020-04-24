@@ -65,8 +65,12 @@ struct GameplayStateFrameData {
     grid: [[bool; 5]; 6],
 }
 
-enum GameStateData {
+enum GameStateStaticData {
     Gameplay(GameplayStateStaticData),
+}
+
+enum GameStateFrameData {
+    Gameplay(GameplayStateFrameData),
 }
 
 //struct GameState {
@@ -76,10 +80,10 @@ enum GameStateData {
 // data for each displayed frame
 // frame = "A piece of data that is processed and ultimately displayed on screen"
 struct FrameParams {
-    cpu_render : CpuRenderFrameData,
+    cpu_render: CpuRenderFrameData,
 
     // if inside a gameplay
-    gameplay_data: Option<GameplayStateFrameData>,
+    gameplay_data: Vec<GameStateFrameData>,
 }
 
 fn pre_cpu_update_frame(
@@ -200,8 +204,8 @@ fn main() {
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
 
     let mut frame_params0 = FrameParams {
-        gameplay_data: None,
-		cpu_render : CpuRenderFrameData {
+        gameplay_data: Vec::new(),
+        cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
                 1024 * 8,
@@ -211,8 +215,8 @@ fn main() {
     };
 
     let mut frame_params1 = FrameParams {
-        gameplay_data: None,
-		cpu_render : CpuRenderFrameData {
+        gameplay_data: Vec::new(),
+        cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
                 1024 * 8,
@@ -235,7 +239,7 @@ fn main() {
     let mut current_time = std::time::Instant::now();
     let mut update_frame_number: u64 = 0;
 
-    let mut game_state_stack: Vec<GameStateData> = Vec::new();
+    let mut game_state_stack: Vec<GameStateStaticData> = Vec::new();
     let mut next_game_state = Some(GameStateType::Gameplay);
 
     while !should_game_close {
@@ -272,16 +276,21 @@ fn main() {
             Some(x) => {
                 match x {
                     GameStateType::Gameplay => {
-                        game_state_stack.push(GameStateData::Gameplay(GameplayStateStaticData {}));
+                        game_state_stack
+                            .push(GameStateStaticData::Gameplay(GameplayStateStaticData {}));
 
                         // also create the frame data in all instances of the frame data
-                        frame_params0.gameplay_data = Some(GameplayStateFrameData {
-                            grid: { [[false; 5]; 6] },
-                        });
+                        frame_params0
+                            .gameplay_data
+                            .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
+                                grid: { [[false; 5]; 6] },
+                            }));
 
-						frame_params1.gameplay_data = Some(GameplayStateFrameData {
-                            grid: { [[false; 5]; 6] },
-                        });
+                        frame_params1
+                            .gameplay_data
+                            .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
+                                grid: { [[false; 5]; 6] },
+                            }));
                     }
                 }
 
@@ -298,10 +307,14 @@ fn main() {
             (&frame_params0, &mut frame_params1)
         };
 
-        pre_cpu_update_frame(
-            frame_params.gameplay_data.as_mut().unwrap(),
-            prev_frame_params.gameplay_data.as_ref().unwrap(),
-        );
+        match (
+            frame_params.gameplay_data.get_mut(0).unwrap(),
+            prev_frame_params.gameplay_data.get(0).unwrap(),
+        ) {
+            (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
+                pre_cpu_update_frame(x, y);
+            }
+        }
 
         while accumulator >= dt {
             // update the game for a fixed number of steps
@@ -321,30 +334,32 @@ fn main() {
                 }
             }
 
-            let game_state_data: &mut GameplayStateFrameData =
-                frame_params.gameplay_data.as_mut().unwrap();
-
-            update_gameplay_state(game_state_data, &messages);
+            match frame_params.gameplay_data.get_mut(0).unwrap() {
+                GameStateFrameData::Gameplay(x) => update_gameplay_state(x, &messages),
+            };
 
             update_frame_number += 1;
         }
 
         // draw the game
         let mut gpu_heap = LinearAllocator {
-            gpu_data: map_gpu_buffer(&frame_params.cpu_render.frame_constant_buffer, &graphics_layer),
+            gpu_data: map_gpu_buffer(
+                &frame_params.cpu_render.frame_constant_buffer,
+                &graphics_layer,
+            ),
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
-        let game_state_data: &GameplayStateFrameData = frame_params.gameplay_data.as_ref().unwrap();
-
-        draw_gameplay_state(
-            game_state_data,
-            &mut graphics_layer.graphics_command_list,
-            &graphics_layer.backbuffer_rtv,
-            &screenspace_quad_pso,
-            &gpu_heap.gpu_data,
-            &mut gpu_heap.state,
-        );
+        match frame_params.gameplay_data.get_mut(0).unwrap() {
+            GameStateFrameData::Gameplay(x) => draw_gameplay_state(
+                x,
+                &mut graphics_layer.graphics_command_list,
+                &graphics_layer.backbuffer_rtv,
+                &screenspace_quad_pso,
+                &gpu_heap.gpu_data,
+                &mut gpu_heap.state,
+            ),
+        };
 
         // unmap the gpu buffer
         // from this point onwards we are unable to allocate further memory
