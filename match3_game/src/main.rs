@@ -52,27 +52,44 @@ fn parse_cmdline() -> CommandLineArgs {
     }
 }
 
-// data for each displayed frame
-// frame = "A piece of data that is processed and ultimately displayed on screen"
-struct FrameParams {
-    game_state_stack: std::vec::Vec<GameStates>,
-
-    // this value will be set with the information for the next game state we are going to transition to
-    m_next_game_state: Option<GameStates>,
+enum GameStateType {
+	MainMenu,
+	Pause,
+	Gameplay,
 }
 
-#[derive(Copy, Clone)]
-struct GameplayFrameParams {
+//struct GameplayStateStaticData {
+//}
+
+struct GameplayStateFrameData {
     // the state of the grid
     grid: [[bool; 5]; 6],
 }
 
-#[derive(Copy, Clone)]
-enum GameStates {
-    Gameplay(GameplayFrameParams),
+//enum GameStateData {
+//	Gameplay(GameplayStateStaticData)
+//}
+
+//struct GameState {
+//	state_type : GameStateType,
+//	state_data : GameStateData,
+//}
+
+// data for each displayed frame
+// frame = "A piece of data that is processed and ultimately displayed on screen"
+struct FrameParams {
+	// cpu_render : CpuRenderFrameData,
+	
+	// if inside a gameplay
+	gameplay_data : Option<GameplayStateFrameData>,
 }
 
-fn update_gameplay_state(frame_params: &mut GameplayFrameParams, messages: &Vec<WindowMessages>) {
+fn pre_cpu_update_frame( frame_data : &mut GameplayStateFrameData, prev_frame_data : & GameplayStateFrameData )
+{
+	frame_data.grid = prev_frame_data.grid;
+}
+
+fn update_gameplay_state(frame_params: &mut GameplayStateFrameData, messages: &Vec<WindowMessages>) {
     let rnd_row = 5;
     let rnd_col = 4;
 
@@ -111,7 +128,7 @@ fn update_gameplay_state(frame_params: &mut GameplayFrameParams, messages: &Vec<
 }
 
 fn draw_gameplay_state(
-    frame_params: &GameplayFrameParams,
+    frame_params: &GameplayStateFrameData,
     command_list: &mut GraphicsCommandList,
     backbuffer_rtv: &RenderTargetView,
     screenspace_quad_pso: &PipelineStateObject,
@@ -197,21 +214,16 @@ fn main() {
         },
     ];
 
-    // create the initial state for the the frame params
-    // frame params are passing through the following stages
-    // update
-    // cpu render
-    // gpu render
-    let mut frame_params0 = FrameParams {
-        m_next_game_state: None,
-        game_state_stack: Vec::new(),
+	let mut frame_params0 = FrameParams {
+		gameplay_data : Some(GameplayStateFrameData {
+			grid: { [[false; 5]; 6] }
+		})
     };
 
     let mut frame_params1 = FrameParams {
-        m_next_game_state: Some(GameStates::Gameplay(GameplayFrameParams {
-            grid: { [[false; 5]; 6] },
-        })),
-        game_state_stack: Vec::new(),
+		gameplay_data : Some(GameplayStateFrameData {
+			grid: { [[false; 5]; 6] }
+		})
     };
 
     // load the PSO required to draw the quad onto the screen
@@ -264,24 +276,12 @@ fn main() {
             (&frame_params0, &mut frame_params1)
         };
 
-		// copy state you want to move from the last into the current state
-		frame_params.m_next_game_state = prev_frame_params.m_next_game_state;
-		frame_params.game_state_stack = prev_frame_params.game_state_stack.clone();
+
+		pre_cpu_update_frame( frame_params.gameplay_data.as_mut().unwrap(), prev_frame_params.gameplay_data.as_ref().unwrap() );
 
         while accumulator >= dt {
             // update the game for a fixed number of steps
             accumulator -= dt;
-
-            // before we start to update the game check if a new gameplay state needs to be created
-            if frame_params.m_next_game_state.is_some() {
-                // waiting game state
-                // copy the state from the waiting into the active list
-                frame_params
-                    .game_state_stack
-                    .push(frame_params.m_next_game_state.unwrap());
-
-                frame_params.m_next_game_state = None;
-            }
 
             let mut messages: Vec<WindowMessages> = Vec::new();
 
@@ -297,12 +297,9 @@ fn main() {
                 }
             }
 
-            // iterative over all game states
-            for game_state in frame_params.game_state_stack.iter_mut().rev() {
-                match game_state {
-                    GameStates::Gameplay(state) => update_gameplay_state(state, &messages),
-                }
-            }
+			let game_state_data : & mut GameplayStateFrameData = frame_params.gameplay_data.as_mut().unwrap();
+
+			update_gameplay_state(game_state_data, &messages);
 
             update_frame_number += 1;
         }
@@ -316,11 +313,9 @@ fn main() {
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
-        for game_state in frame_params.game_state_stack.iter_mut() {
-            match game_state {
-                GameStates::Gameplay(state) => draw_gameplay_state(&state, & mut graphics_layer.graphics_command_list, & graphics_layer.backbuffer_rtv, &screenspace_quad_pso, & gpu_heap.gpu_data, &mut gpu_heap.state ),
-            }
-        }
+		let game_state_data : & GameplayStateFrameData = frame_params.gameplay_data.as_ref().unwrap();
+
+		draw_gameplay_state(game_state_data, & mut graphics_layer.graphics_command_list, & graphics_layer.backbuffer_rtv, &screenspace_quad_pso, & gpu_heap.gpu_data, &mut gpu_heap.state );
 
         // unmap the gpu buffer
         // from this point onwards we are unable to allocate further memory
