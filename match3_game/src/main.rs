@@ -76,7 +76,7 @@ enum GameStateData {
 // data for each displayed frame
 // frame = "A piece of data that is processed and ultimately displayed on screen"
 struct FrameParams {
-    // cpu_render : CpuRenderFrameData,
+    cpu_render : CpuRenderFrameData,
 
     // if inside a gameplay
     gameplay_data: Option<GameplayStateFrameData>,
@@ -199,30 +199,26 @@ fn main() {
     let mut graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
 
-    // create data required for each frame
-    let cpu_render_frame_data: [CpuRenderFrameData; 2] = [
-        CpuRenderFrameData {
+    let mut frame_params0 = FrameParams {
+        gameplay_data: None,
+		cpu_render : CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
                 1024 * 8,
                 "Frame 0 Constants",
             ),
         },
-        CpuRenderFrameData {
+    };
+
+    let mut frame_params1 = FrameParams {
+        gameplay_data: None,
+		cpu_render : CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
                 1024 * 8,
                 "Frame 1 Constants",
             ),
         },
-    ];
-
-    let mut frame_params0 = FrameParams {
-        gameplay_data: None,
-    };
-
-    let mut frame_params1 = FrameParams {
-        gameplay_data: None,
     };
 
     // load the PSO required to draw the quad onto the screen
@@ -237,7 +233,6 @@ fn main() {
     let mut accumulator: f32 = dt;
 
     let mut current_time = std::time::Instant::now();
-    let mut draw_frame_number: u64 = 0;
     let mut update_frame_number: u64 = 0;
 
     let mut game_state_stack: Vec<GameStateData> = Vec::new();
@@ -335,11 +330,8 @@ fn main() {
         }
 
         // draw the game
-        let frame_data: &CpuRenderFrameData =
-            &cpu_render_frame_data[draw_frame_number as usize % cpu_render_frame_data.len()];
-
         let mut gpu_heap = LinearAllocator {
-            gpu_data: map_gpu_buffer(&frame_data.frame_constant_buffer, &graphics_layer),
+            gpu_data: map_gpu_buffer(&frame_params.cpu_render.frame_constant_buffer, &graphics_layer),
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
@@ -361,7 +353,5 @@ fn main() {
         execute_command_list(&graphics_layer, &graphics_layer.graphics_command_list);
 
         present_swapchain(&graphics_layer);
-
-        draw_frame_number += 1;
     }
 }
