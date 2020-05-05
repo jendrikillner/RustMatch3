@@ -54,23 +54,30 @@ fn parse_cmdline() -> CommandLineArgs {
 
 enum GameStateType {
     //MainMenu,
-    //Pause,
+    Pause,
     Gameplay,
 }
 
+///  -------------------- gameplay ---------------------
+
 struct GameplayStateStaticData {}
+struct PauseStateStaticData {}
 
 struct GameplayStateFrameData {
     // the state of the grid
     grid: [[bool; 5]; 6],
 }
 
+struct PauseStateFrameData {}
+
 enum GameStateStaticData {
     Gameplay(GameplayStateStaticData),
+    Pause(PauseStateStaticData),
 }
 
 enum GameStateFrameData {
     Gameplay(GameplayStateFrameData),
+    Pause(PauseStateFrameData),
 }
 
 //struct GameState {
@@ -90,13 +97,23 @@ fn pre_cpu_update_frame(
     frame_data: &mut GameplayStateFrameData,
     prev_frame_data: &GameplayStateFrameData,
 ) {
+    // we could also implement the copy trait here
+    // for now to keep it simple just copy the state
+    // might be moved into cpu update later
     frame_data.grid = prev_frame_data.grid;
+}
+
+fn update_pause_state(
+    _frame_params: &mut PauseStateFrameData,
+    _messages: &Vec<WindowMessages>,
+) -> Option<GameStateType> {
+    None
 }
 
 fn update_gameplay_state(
     frame_params: &mut GameplayStateFrameData,
     messages: &Vec<WindowMessages>,
-) {
+) -> Option<GameStateType> {
     let rnd_row = 5;
     let rnd_col = 4;
 
@@ -110,6 +127,8 @@ fn update_gameplay_state(
                 println!("mouse:left down");
 
                 frame_params.grid[rnd_row][rnd_col] = true;
+
+                return Some(GameStateType::Pause);
             }
 
             WindowMessages::MouseLeftButtonUp => {
@@ -132,6 +151,38 @@ fn update_gameplay_state(
             } // this should never happen
         }
     }
+
+    // don't need to switch game states
+    None
+}
+
+fn draw_pause_state(
+    _frame_params: &PauseStateFrameData,
+    command_list: &mut GraphicsCommandList,
+    _backbuffer_rtv: &RenderTargetView,
+    screenspace_quad_pso: &PipelineStateObject,
+    gpu_heap_data: &MappedGpuData,
+    gpu_heap_state: &mut LinearAllocatorState,
+) {
+    let obj_alloc = HeapAlloc::new(
+        ScreenSpaceQuadData {
+            color: Float3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+
+            padding: 0.0,
+            scale: Float2 { x: 1.0, y: 1.0 },
+            position: Float2 { x: 0.0, y: 0.0 },
+        },
+        gpu_heap_data,
+        gpu_heap_state,
+    );
+
+    bind_constant(command_list, 0, &obj_alloc);
+
+    draw_vertices(command_list, 4);
 }
 
 fn draw_gameplay_state(
@@ -292,6 +343,19 @@ fn main() {
                                 grid: { [[false; 5]; 6] },
                             }));
                     }
+
+                    GameStateType::Pause => {
+                        game_state_stack.push(GameStateStaticData::Pause(PauseStateStaticData {}));
+
+                        // also create the frame data in all instances of the frame data
+                        frame_params0
+                            .gameplay_data
+                            .push(GameStateFrameData::Pause(PauseStateFrameData {}));
+
+                        frame_params1
+                            .gameplay_data
+                            .push(GameStateFrameData::Pause(PauseStateFrameData {}));
+                    }
                 }
 
                 // make sure to reset the state
@@ -307,12 +371,22 @@ fn main() {
             (&frame_params0, &mut frame_params1)
         };
 
-        match (
-            frame_params.gameplay_data.get_mut(0).unwrap(),
-            prev_frame_params.gameplay_data.get(0).unwrap(),
-        ) {
-            (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
-                pre_cpu_update_frame(x, y);
+        // iterate backwards
+        // let higher level states update first
+        // they will be allowed to stop input from reaching lower level states
+        // and/or stop other states from updating completly
+        for i in 0..frame_params.gameplay_data.len() {
+            match (
+                frame_params.gameplay_data.get_mut(i).unwrap(),
+                prev_frame_params.gameplay_data.get(i).unwrap(),
+            ) {
+                (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
+                    pre_cpu_update_frame(x, y);
+                }
+                (GameStateFrameData::Pause(_x), GameStateFrameData::Pause(_y)) => {
+                    // pre_cpu_update_frame(x, y);
+                }
+                _ => panic!("unexpeced combination of states"),
             }
         }
 
@@ -334,9 +408,12 @@ fn main() {
                 }
             }
 
-            match frame_params.gameplay_data.get_mut(0).unwrap() {
-                GameStateFrameData::Gameplay(x) => update_gameplay_state(x, &messages),
-            };
+            for i in (0..frame_params.gameplay_data.len()).rev() {
+                next_game_state = match frame_params.gameplay_data.get_mut(i).unwrap() {
+                    GameStateFrameData::Gameplay(x) => update_gameplay_state(x, &messages),
+                    GameStateFrameData::Pause(x) => update_pause_state(x, &messages),
+                };
+            }
 
             update_frame_number += 1;
         }
@@ -350,16 +427,27 @@ fn main() {
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
-        match frame_params.gameplay_data.get_mut(0).unwrap() {
-            GameStateFrameData::Gameplay(x) => draw_gameplay_state(
-                x,
-                &mut graphics_layer.graphics_command_list,
-                &graphics_layer.backbuffer_rtv,
-                &screenspace_quad_pso,
-                &gpu_heap.gpu_data,
-                &mut gpu_heap.state,
-            ),
-        };
+        for i in 0..frame_params.gameplay_data.len() {
+            match frame_params.gameplay_data.get_mut(i).unwrap() {
+                GameStateFrameData::Gameplay(x) => draw_gameplay_state(
+                    x,
+                    &mut graphics_layer.graphics_command_list,
+                    &graphics_layer.backbuffer_rtv,
+                    &screenspace_quad_pso,
+                    &gpu_heap.gpu_data,
+                    &mut gpu_heap.state,
+                ),
+
+                GameStateFrameData::Pause(x) => draw_pause_state(
+                    x,
+                    &mut graphics_layer.graphics_command_list,
+                    &graphics_layer.backbuffer_rtv,
+                    &screenspace_quad_pso,
+                    &gpu_heap.gpu_data,
+                    &mut gpu_heap.state,
+                ),
+            };
+        }
 
         // unmap the gpu buffer
         // from this point onwards we are unable to allocate further memory
