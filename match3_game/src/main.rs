@@ -6,10 +6,11 @@ pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
 }
 
 #[repr(C)]
-struct Float3 {
+struct Float4 {
     x: f32,
     y: f32,
     z: f32,
+	a: f32,
 }
 
 #[repr(C)]
@@ -20,8 +21,7 @@ struct Float2 {
 
 #[repr(C)]
 struct ScreenSpaceQuadData {
-    color: Float3,
-    padding: f32,
+    color: Float4,
     scale: Float2,
     position: Float2,
 }
@@ -164,15 +164,16 @@ fn draw_pause_state(
     gpu_heap_data: &MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
+	bind_pso(command_list, &screenspace_quad_pso);
+
     let obj_alloc = HeapAlloc::new(
         ScreenSpaceQuadData {
-            color: Float3 {
+            color: Float4 {
                 x: 0.0,
                 y: 0.0,
                 z: 0.0,
+				a: 0.8,
             },
-
-            padding: 0.0,
             scale: Float2 { x: 1.0, y: 1.0 },
             position: Float2 { x: 0.0, y: 0.0 },
         },
@@ -210,19 +211,20 @@ fn draw_gameplay_state(
             let obj_alloc = HeapAlloc::new(
                 ScreenSpaceQuadData {
                     color: if !column {
-                        Float3 {
+                        Float4 {
                             x: 1.0,
                             y: 0.0,
                             z: 0.0,
+							a: 1.0,
                         }
                     } else {
-                        Float3 {
+                        Float4 {
                             x: 0.0,
                             y: 1.0,
                             z: 0.0,
+							a: 1.0,
                         }
                     },
-                    padding: 0.0,
                     scale: Float2 {
                         x: (90.0 / 540.0),
                         y: (90.0 / 960.0),
@@ -242,6 +244,13 @@ fn draw_gameplay_state(
         }
     }
 }
+
+// todo, update the logic todo the following
+// 1. user presses the left mouse button, this will open the pause menu
+// 2. the pause menu blocks input from reaching the gameplay state
+// 3. enable alpha blending for the pause menu overlay
+// 4. slowly blend to a dark black overlay in around 2 seconds orso
+// 5. once the maximum has been reached, a left click will fade out the black screen and allow the gameplay logic to receive input again
 
 fn main() {
     let args: CommandLineArgs = parse_cmdline();
@@ -278,11 +287,14 @@ fn main() {
 
     // load the PSO required to draw the quad onto the screen
 
-    let pso_desc = PipelineStateObjectDesc {
+    let screenspace_quad_pso: PipelineStateObject = create_pso(&graphics_layer.device, PipelineStateObjectDesc {
         shader_name: "target_data/shaders/screen_space_quad",
-    };
-
-    let screenspace_quad_pso: PipelineStateObject = create_pso(&graphics_layer.device, pso_desc);
+		premultiplied_alpha: false,
+    });
+	let screenspace_quad_blended_pso: PipelineStateObject = create_pso(&graphics_layer.device, PipelineStateObjectDesc {
+        shader_name: "target_data/shaders/screen_space_quad",
+		premultiplied_alpha: true,
+    });
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
@@ -442,7 +454,7 @@ fn main() {
                     x,
                     &mut graphics_layer.graphics_command_list,
                     &graphics_layer.backbuffer_rtv,
-                    &screenspace_quad_pso,
+                    &screenspace_quad_blended_pso,
                     &gpu_heap.gpu_data,
                     &mut gpu_heap.state,
                 ),
