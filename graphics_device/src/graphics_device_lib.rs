@@ -478,17 +478,20 @@ pub fn create_device_graphics_layer<'a>(
 #[derive(Debug)]
 pub struct PipelineStateObjectDesc<'a> {
     pub shader_name: &'a str,
+	pub premultiplied_alpha: bool,
 }
 
 pub struct PipelineStateObject<'a> {
     pub vertex_shader: &'a ID3D11VertexShader,
     pub pixel_shader: &'a ID3D11PixelShader,
+	pub blend_state: &'a ID3D11BlendState,
 }
 
 impl Drop for PipelineStateObject<'_> {
     fn drop(&mut self) {
         leak_check_release(self.vertex_shader, 0, None);
         leak_check_release(self.pixel_shader, 0, None);
+		leak_check_release(self.blend_state, 0, None);
     }
 }
 
@@ -502,6 +505,7 @@ pub fn create_pso<'a>(
 
     let mut vertex_shader: *mut ID3D11VertexShader = std::ptr::null_mut();
     let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
+	let mut blend_state : *mut ID3D11BlendState  = std::ptr::null_mut();
 
     // load a shader
     let vertex_shader_memory = std::fs::read(&vertex_shader_name).unwrap();
@@ -543,9 +547,38 @@ pub fn create_pso<'a>(
         );
     }
 
+	let rt0_blend_desc = D3D11_RENDER_TARGET_BLEND_DESC {
+		BlendEnable : if desc.premultiplied_alpha { 1 } else { 0 },
+		SrcBlend: D3D11_BLEND_SRC_ALPHA,
+		DestBlend: D3D11_BLEND_INV_SRC_ALPHA,
+		BlendOp: D3D11_BLEND_OP_ADD,
+		SrcBlendAlpha : D3D11_BLEND_INV_DEST_ALPHA,
+		DestBlendAlpha : D3D11_BLEND_ONE,
+		BlendOpAlpha : D3D11_BLEND_OP_ADD,
+		RenderTargetWriteMask  : D3D11_COLOR_WRITE_ENABLE_ALL as u8,
+	};
+
+	// setup the blend description
+	let blend_desc = D3D11_BLEND_DESC {
+		AlphaToCoverageEnable : 0,
+		IndependentBlendEnable : 0, // always use RT0 settings for all targets
+		RenderTarget : [rt0_blend_desc;8]
+	};
+
+	let error: HRESULT = unsafe {
+        device.native.CreateBlendState(
+            &blend_desc,
+            &mut blend_state,
+        )
+    };
+
+    assert!(error == winapi::shared::winerror::S_OK);
+
     PipelineStateObject {
         vertex_shader: unsafe { vertex_shader.as_mut().unwrap() },
         pixel_shader: unsafe { pixel_shader.as_mut().unwrap() },
+		blend_state : unsafe { blend_state.as_mut().unwrap() },
+
     }
 }
 
@@ -593,6 +626,8 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
             (pso.vertex_shader as *const ID3D11VertexShader as u64) as *mut ID3D11VertexShader;
         let pixel_shader_mut: *mut ID3D11PixelShader =
             (pso.pixel_shader as *const ID3D11PixelShader as u64) as *mut ID3D11PixelShader;
+		let blend_state_mut: *mut ID3D11BlendState   =
+            (pso.blend_state as *const ID3D11BlendState as u64) as *mut ID3D11BlendState;
 
         // bind the shaders
         command_context.VSSetShader(vertex_shader_mut, std::ptr::null_mut(), 0);
@@ -600,6 +635,9 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
 
         // fow now assume all PSO will be using this state
         command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		// and set the correct blending states
+		command_context.OMSetBlendState(blend_state_mut, &[0.0;4], 0xffffffff);
     }
 }
 
