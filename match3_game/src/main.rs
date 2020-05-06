@@ -10,7 +10,7 @@ struct Float4 {
     x: f32,
     y: f32,
     z: f32,
-	a: f32,
+    a: f32,
 }
 
 #[repr(C)]
@@ -68,7 +68,9 @@ struct GameplayStateFrameData {
     grid: [[bool; 5]; 6],
 }
 
-struct PauseStateFrameData {}
+struct PauseStateFrameData {
+    fade_in_status: f32,
+}
 
 enum GameStateStaticData {
     Gameplay(GameplayStateStaticData),
@@ -93,6 +95,16 @@ struct FrameParams {
     gameplay_data: Vec<GameStateFrameData>,
 }
 
+fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
+    if x > max {
+        max
+    } else if x < min {
+        min
+    } else {
+        x
+    }
+}
+
 fn pre_cpu_update_frame(
     frame_data: &mut GameplayStateFrameData,
     prev_frame_data: &GameplayStateFrameData,
@@ -104,9 +116,13 @@ fn pre_cpu_update_frame(
 }
 
 fn update_pause_state(
-    _frame_params: &mut PauseStateFrameData,
+    prev_frame_params: &PauseStateFrameData,
+    frame_params: &mut PauseStateFrameData,
     _messages: &Vec<WindowMessages>,
+    dt: f32,
 ) -> Option<GameStateType> {
+    frame_params.fade_in_status = clamp(prev_frame_params.fade_in_status + dt, 0.0, 1.0);
+
     None
 }
 
@@ -157,14 +173,14 @@ fn update_gameplay_state(
 }
 
 fn draw_pause_state(
-    _frame_params: &PauseStateFrameData,
+    frame_params: &PauseStateFrameData,
     command_list: &mut GraphicsCommandList,
     _backbuffer_rtv: &RenderTargetView,
     screenspace_quad_pso: &PipelineStateObject,
     gpu_heap_data: &MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
-	bind_pso(command_list, &screenspace_quad_pso);
+    bind_pso(command_list, &screenspace_quad_pso);
 
     let obj_alloc = HeapAlloc::new(
         ScreenSpaceQuadData {
@@ -172,7 +188,7 @@ fn draw_pause_state(
                 x: 0.0,
                 y: 0.0,
                 z: 0.0,
-				a: 0.8,
+                a: frame_params.fade_in_status * 0.8,
             },
             scale: Float2 { x: 1.0, y: 1.0 },
             position: Float2 { x: 0.0, y: 0.0 },
@@ -215,14 +231,14 @@ fn draw_gameplay_state(
                             x: 1.0,
                             y: 0.0,
                             z: 0.0,
-							a: 1.0,
+                            a: 1.0,
                         }
                     } else {
                         Float4 {
                             x: 0.0,
                             y: 1.0,
                             z: 0.0,
-							a: 1.0,
+                            a: 1.0,
                         }
                     },
                     scale: Float2 {
@@ -287,14 +303,20 @@ fn main() {
 
     // load the PSO required to draw the quad onto the screen
 
-    let screenspace_quad_pso: PipelineStateObject = create_pso(&graphics_layer.device, PipelineStateObjectDesc {
-        shader_name: "target_data/shaders/screen_space_quad",
-		premultiplied_alpha: false,
-    });
-	let screenspace_quad_blended_pso: PipelineStateObject = create_pso(&graphics_layer.device, PipelineStateObjectDesc {
-        shader_name: "target_data/shaders/screen_space_quad",
-		premultiplied_alpha: true,
-    });
+    let screenspace_quad_pso: PipelineStateObject = create_pso(
+        &graphics_layer.device,
+        PipelineStateObjectDesc {
+            shader_name: "target_data/shaders/screen_space_quad",
+            premultiplied_alpha: false,
+        },
+    );
+    let screenspace_quad_blended_pso: PipelineStateObject = create_pso(
+        &graphics_layer.device,
+        PipelineStateObjectDesc {
+            shader_name: "target_data/shaders/screen_space_quad",
+            premultiplied_alpha: true,
+        },
+    );
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
@@ -360,13 +382,17 @@ fn main() {
                         game_state_stack.push(GameStateStaticData::Pause(PauseStateStaticData {}));
 
                         // also create the frame data in all instances of the frame data
-                        frame_params0
-                            .gameplay_data
-                            .push(GameStateFrameData::Pause(PauseStateFrameData {}));
+                        frame_params0.gameplay_data.push(GameStateFrameData::Pause(
+                            PauseStateFrameData {
+                                fade_in_status: 0.0,
+                            },
+                        ));
 
-                        frame_params1
-                            .gameplay_data
-                            .push(GameStateFrameData::Pause(PauseStateFrameData {}));
+                        frame_params1.gameplay_data.push(GameStateFrameData::Pause(
+                            PauseStateFrameData {
+                                fade_in_status: 0.0,
+                            },
+                        ));
                     }
                 }
 
@@ -421,9 +447,17 @@ fn main() {
             }
 
             for i in (0..frame_params.gameplay_data.len()).rev() {
-                next_game_state = match frame_params.gameplay_data.get_mut(i).unwrap() {
-                    GameStateFrameData::Gameplay(x) => update_gameplay_state(x, &messages),
-                    GameStateFrameData::Pause(x) => update_pause_state(x, &messages),
+                next_game_state = match (
+                    frame_params.gameplay_data.get_mut(i).unwrap(),
+                    prev_frame_params.gameplay_data.get(i).unwrap(),
+                ) {
+                    (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(_y)) => {
+                        update_gameplay_state(x, &messages)
+                    }
+                    (GameStateFrameData::Pause(x), GameStateFrameData::Pause(y)) => {
+                        update_pause_state(y, x, &messages, dt)
+                    }
+                    _ => panic!("unexpeced combination of states"),
                 };
             }
 
