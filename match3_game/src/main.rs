@@ -115,21 +115,45 @@ fn pre_cpu_update_frame(
     frame_data.grid = prev_frame_data.grid;
 }
 
+enum UpdateGameStatus {
+    Unchanged,
+    TransitionToNewState(GameStateType),
+    RemoveState,
+}
+
 fn update_pause_state(
     prev_frame_params: &PauseStateFrameData,
     frame_params: &mut PauseStateFrameData,
-    _messages: &Vec<WindowMessages>,
+    messages: &mut Vec<WindowMessages>,
     dt: f32,
-) -> Option<GameStateType> {
+) -> UpdateGameStatus {
+    // fade in the screen state
     frame_params.fade_in_status = clamp(prev_frame_params.fade_in_status + dt, 0.0, 1.0);
 
-    None
+    for x in messages.iter() {
+        match x {
+            WindowMessages::MouseLeftButtonDown => {
+                // block all input from reaching game states below
+                messages.clear();
+
+                return UpdateGameStatus::RemoveState;
+            }
+
+            _ => {}
+        }
+    }
+
+    // block all input from reaching game states below
+    messages.clear();
+
+    // todo: add support for reading input and closing the state again
+    UpdateGameStatus::Unchanged
 }
 
 fn update_gameplay_state(
     frame_params: &mut GameplayStateFrameData,
     messages: &Vec<WindowMessages>,
-) -> Option<GameStateType> {
+) -> UpdateGameStatus {
     let rnd_row = 5;
     let rnd_col = 4;
 
@@ -144,7 +168,7 @@ fn update_gameplay_state(
 
                 frame_params.grid[rnd_row][rnd_col] = true;
 
-                return Some(GameStateType::Pause);
+                return UpdateGameStatus::TransitionToNewState(GameStateType::Pause);
             }
 
             WindowMessages::MouseLeftButtonUp => {
@@ -169,7 +193,7 @@ fn update_gameplay_state(
     }
 
     // don't need to switch game states
-    None
+    UpdateGameStatus::Unchanged
 }
 
 fn draw_pause_state(
@@ -447,7 +471,7 @@ fn main() {
             }
 
             for i in (0..frame_params.gameplay_data.len()).rev() {
-                next_game_state = match (
+                let state_status = match (
                     frame_params.gameplay_data.get_mut(i).unwrap(),
                     prev_frame_params.gameplay_data.get(i).unwrap(),
                 ) {
@@ -455,10 +479,20 @@ fn main() {
                         update_gameplay_state(x, &messages)
                     }
                     (GameStateFrameData::Pause(x), GameStateFrameData::Pause(y)) => {
-                        update_pause_state(y, x, &messages, dt)
+                        update_pause_state(y, x, &mut messages, dt)
                     }
                     _ => panic!("unexpeced combination of states"),
                 };
+
+                match state_status {
+                    UpdateGameStatus::Unchanged => {}
+                    UpdateGameStatus::TransitionToNewState(x) => {
+                        next_game_state = Some(x);
+                    }
+                    UpdateGameStatus::RemoveState => {
+                        // need to handle this case
+                    }
+                }
             }
 
             update_frame_number += 1;
