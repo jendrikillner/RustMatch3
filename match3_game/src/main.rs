@@ -105,16 +105,6 @@ fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
     }
 }
 
-fn pre_cpu_update_frame(
-    frame_data: &mut GameplayStateFrameData,
-    prev_frame_data: &GameplayStateFrameData,
-) {
-    // we could also implement the copy trait here
-    // for now to keep it simple just copy the state
-    // might be moved into cpu update later
-    frame_data.grid = prev_frame_data.grid;
-}
-
 enum UpdateGameStatus {
     Unchanged,
     TransitionToNewState(GameStateType),
@@ -151,10 +141,16 @@ fn update_pause_state(
 }
 
 fn update_gameplay_state(
-    frame_params: &mut GameplayStateFrameData,
-    messages: &Vec<WindowMessages>,
+    prev_frame_data: &GameplayStateFrameData,
+    frame_data: &mut GameplayStateFrameData,
+    messages: &mut Vec<WindowMessages>,
+    _dt: f32,
 ) -> UpdateGameStatus {
-    let rnd_row = 5;
+    
+	// copy the state of the previous state as starting point
+    frame_data.grid = prev_frame_data.grid;
+
+	let rnd_row = 5;
     let rnd_col = 4;
 
     for x in messages {
@@ -166,7 +162,7 @@ fn update_gameplay_state(
             WindowMessages::MouseLeftButtonDown => {
                 println!("mouse:left down");
 
-                frame_params.grid[rnd_row][rnd_col] = true;
+                frame_data.grid[rnd_row][rnd_col] = true;
 
                 return UpdateGameStatus::TransitionToNewState(GameStateType::Pause);
             }
@@ -433,25 +429,6 @@ fn main() {
             (&frame_params0, &mut frame_params1)
         };
 
-        // iterate backwards
-        // let higher level states update first
-        // they will be allowed to stop input from reaching lower level states
-        // and/or stop other states from updating completly
-        for i in 0..frame_params.gameplay_data.len() {
-            match (
-                frame_params.gameplay_data.get_mut(i).unwrap(),
-                prev_frame_params.gameplay_data.get(i).unwrap(),
-            ) {
-                (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
-                    pre_cpu_update_frame(x, y);
-                }
-                (GameStateFrameData::Pause(_x), GameStateFrameData::Pause(_y)) => {
-                    // pre_cpu_update_frame(x, y);
-                }
-                _ => panic!("unexpeced combination of states"),
-            }
-        }
-
         while accumulator >= dt {
             // update the game for a fixed number of steps
             accumulator -= dt;
@@ -475,8 +452,8 @@ fn main() {
                     frame_params.gameplay_data.get_mut(i).unwrap(),
                     prev_frame_params.gameplay_data.get(i).unwrap(),
                 ) {
-                    (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(_y)) => {
-                        update_gameplay_state(x, &messages)
+                    (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
+                        update_gameplay_state(y, x, &mut messages, dt)
                     }
                     (GameStateFrameData::Pause(x), GameStateFrameData::Pause(y)) => {
                         update_pause_state(y, x, &mut messages, dt)
