@@ -548,10 +548,10 @@ fn main() {
         for state in game_state_stack.iter_mut() {
             let state_status = match state {
                 GameStateData::Gameplay(x) => {
-                    let (_prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
-                        (&x.frame_data0, &mut x.frame_data1)
+                    let frame_params = if update_frame_number % 2 == 0 {
+                        & x.frame_data1
                     } else {
-                        (&x.frame_data1, &mut x.frame_data0)
+                        & x.frame_data0
                     };
 
                     draw_gameplay_state(
@@ -564,10 +564,10 @@ fn main() {
                 }
 
                 GameStateData::Pause(x) => {
-                    let (_prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
-                        (&x.frame_data0, &mut x.frame_data1)
+                    let frame_params = if update_frame_number % 2 == 0 {
+                        & x.frame_data1
                     } else {
-                        (&x.frame_data1, &mut x.frame_data0)
+                        & x.frame_data0
                     };
 
                     draw_pause_state(
