@@ -109,23 +109,32 @@ struct GameplayState<'a> {
     frame_data1: GameplayStateFrameData,
 }
 
+impl GameplayStateFrameData {
+    fn new<'a>( ) -> GameplayStateFrameData {
+		GameplayStateFrameData {
+            grid: { [[false; 5]; 6] },
+            rnd_state: Xoroshiro128Rng {
+                state: [23480923840238, 459],
+            },
+        }
+	}
+}
+
 impl GameplayState<'_> {
     fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> GameplayState<'a> {
 		GameplayState {
                             static_data: GameplayStateStaticData::new (device_layer),
-                            frame_data0: GameplayStateFrameData {
-                                grid: { [[false; 5]; 6] },
-                                rnd_state: Xoroshiro128Rng {
-                                    state: [23480923840238, 459],
-                                },
-                            },
-                            frame_data1: GameplayStateFrameData {
-                                grid: { [[false; 5]; 6] },
-                                rnd_state: Xoroshiro128Rng {
-                                    state: [23480923840238, 459],
-                                },
-                            },
+                            frame_data0: GameplayStateFrameData::new(),
+                            frame_data1: GameplayStateFrameData::new(),
                         }
+	}
+}
+
+impl PauseStateFrameData {
+    fn new<'a>( ) -> PauseStateFrameData {
+		PauseStateFrameData {
+            fade_in_status: 0.0,
+        }
 	}
 }
 
@@ -139,12 +148,8 @@ impl PauseState<'_> {
     fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> PauseState<'a> {
 		PauseState { 
 			static_data: PauseStateStaticData::new(&device_layer),
-			frame_data0: PauseStateFrameData {
-				fade_in_status: 0.0,
-			},
-            frame_data1: PauseStateFrameData {
-				fade_in_status: 0.0,
-			},
+			frame_data0: PauseStateFrameData::new(),
+            frame_data1: PauseStateFrameData::new(),
         }
 	}
 }
