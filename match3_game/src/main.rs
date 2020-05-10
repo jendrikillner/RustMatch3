@@ -60,8 +60,26 @@ enum GameStateType {
 
 ///  -------------------- gameplay ---------------------
 
-struct GameplayStateStaticData {}
-struct PauseStateStaticData {}
+struct GameplayStateStaticData { }
+
+struct PauseStateStaticData<'a> {
+	screen_space_quad_blended_pso : PipelineStateObject<'a>,
+}
+
+impl PauseStateStaticData<'_> {
+    fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> PauseStateStaticData<'a> {
+
+		let screen_space_quad_blended_pso: PipelineStateObject = create_pso(
+			&device_layer.device,
+			PipelineStateObjectDesc {
+				shader_name: "target_data/shaders/screen_space_quad",
+				premultiplied_alpha: true,
+			},
+		);
+
+        PauseStateStaticData { screen_space_quad_blended_pso }
+    }
+}
 
 struct GameplayStateFrameData {
     // the state of the grid
@@ -74,9 +92,9 @@ struct PauseStateFrameData {
     fade_in_status: f32,
 }
 
-enum GameStateStaticData {
+enum GameStateStaticData<'a> {
     Gameplay(GameplayStateStaticData),
-    Pause(PauseStateStaticData),
+    Pause(PauseStateStaticData<'a>),
 }
 
 enum GameStateFrameData {
@@ -239,14 +257,14 @@ fn update_gameplay_state(
 }
 
 fn draw_pause_state(
+	static_state_data: &PauseStateStaticData,
     frame_params: &PauseStateFrameData,
     command_list: &mut GraphicsCommandList,
     _backbuffer_rtv: &RenderTargetView,
-    screenspace_quad_pso: &PipelineStateObject,
     gpu_heap_data: &MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
-    bind_pso(command_list, &screenspace_quad_pso);
+    bind_pso(command_list, & static_state_data.screen_space_quad_blended_pso );
 
     let obj_alloc = HeapAlloc::new(
         ScreenSpaceQuadData {
@@ -376,13 +394,6 @@ fn main() {
             premultiplied_alpha: false,
         },
     );
-    let screenspace_quad_blended_pso: PipelineStateObject = create_pso(
-        &graphics_layer.device,
-        PipelineStateObjectDesc {
-            shader_name: "target_data/shaders/screen_space_quad",
-            premultiplied_alpha: true,
-        },
-    );
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
@@ -452,7 +463,7 @@ fn main() {
                     }
 
                     GameStateType::Pause => {
-                        game_state_stack.push(GameStateStaticData::Pause(PauseStateStaticData {}));
+                        game_state_stack.push(GameStateStaticData::Pause(PauseStateStaticData::new(&graphics_layer) ));
 
                         // also create the frame data in all instances of the frame data
                         frame_params0.gameplay_data.push(GameStateFrameData::Pause(
@@ -519,13 +530,14 @@ fn main() {
 
             for i in (0..frame_params.gameplay_data.len()).rev() {
                 let state_status = match (
+					game_state_stack.get_mut(i).unwrap(),
                     frame_params.gameplay_data.get_mut(i).unwrap(),
                     prev_frame_params.gameplay_data.get(i).unwrap(),
                 ) {
-                    (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
+                    ( GameStateStaticData::Gameplay(_static_data), GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
                         update_gameplay_state(y, x, &mut messages, dt)
                     }
-                    (GameStateFrameData::Pause(x), GameStateFrameData::Pause(y)) => {
+                    ( GameStateStaticData::Pause(_static_data), GameStateFrameData::Pause(x), GameStateFrameData::Pause(y)) => {
                         update_pause_state(y, x, &mut messages, dt)
                     }
                     _ => panic!("unexpeced combination of states"),
@@ -559,8 +571,10 @@ fn main() {
         };
 
         for i in 0..frame_params.gameplay_data.len() {
-            match frame_params.gameplay_data.get_mut(i).unwrap() {
-                GameStateFrameData::Gameplay(x) => draw_gameplay_state(
+            match (
+				game_state_stack.get_mut(i).unwrap(),
+				frame_params.gameplay_data.get_mut(i).unwrap() ) {
+                (GameStateStaticData::Gameplay(_static_data), GameStateFrameData::Gameplay(x)) => draw_gameplay_state(
                     x,
                     &mut graphics_layer.graphics_command_list,
                     &graphics_layer.backbuffer_rtv,
@@ -569,14 +583,15 @@ fn main() {
                     &mut gpu_heap.state,
                 ),
 
-                GameStateFrameData::Pause(x) => draw_pause_state(
+                (GameStateStaticData::Pause(static_data), GameStateFrameData::Pause(x)) => draw_pause_state(
+					static_data,
                     x,
                     &mut graphics_layer.graphics_command_list,
                     &graphics_layer.backbuffer_rtv,
-                    &screenspace_quad_blended_pso,
                     &gpu_heap.gpu_data,
                     &mut gpu_heap.state,
                 ),
+				_ => panic!("unexpeced combination of states"),
             };
         }
 
