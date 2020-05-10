@@ -181,6 +181,15 @@ fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
     }
 }
 
+struct UpdateBehaviourDesc {
+	// tells the system if a state trasition is required
+	transition_state : GameStateTransitionState,
+
+	// this allows a state to block all input from reaching lower level frames
+	// could be extended so that only certain input values are blocked
+	block_input : bool,
+}
+
 enum GameStateTransitionState {
     Unchanged,
     TransitionToNewState(GameStateType),
@@ -190,30 +199,23 @@ enum GameStateTransitionState {
 fn update_pause_state(
     prev_frame_params: &PauseStateFrameData,
     frame_params: &mut PauseStateFrameData,
-    messages: &mut Vec<WindowMessages>,
+    messages: &Vec<WindowMessages>,
     dt: f32,
-) -> GameStateTransitionState {
+) -> UpdateBehaviourDesc {
     // fade in the screen state
     frame_params.fade_in_status = clamp(prev_frame_params.fade_in_status + dt, 0.0, 1.0);
 
     for x in messages.iter() {
         match x {
             WindowMessages::MouseLeftButtonDown => {
-                // block all input from reaching game states below
-                messages.clear();
-
-                return GameStateTransitionState::ReturnToPreviousState;
+                return UpdateBehaviourDesc { transition_state: GameStateTransitionState::ReturnToPreviousState, block_input : true }
             }
 
             _ => {}
         }
     }
 
-    // block all input from reaching game states below
-    messages.clear();
-
-    // todo: add support for reading input and closing the state again
-    GameStateTransitionState::Unchanged
+    UpdateBehaviourDesc { transition_state: GameStateTransitionState::Unchanged, block_input : true }
 }
 
 pub struct Xoroshiro128Rng {
@@ -249,9 +251,9 @@ fn count_selected_fields(grid: &[[bool; 5]; 6]) -> i32 {
 fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
-    messages: &mut Vec<WindowMessages>,
+    messages: &Vec<WindowMessages>,
     _dt: f32,
-) -> GameStateTransitionState {
+) -> UpdateBehaviourDesc {
     // copy the state of the previous state as starting point
     frame_data.grid = prev_frame_data.grid;
     frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
@@ -298,18 +300,18 @@ fn update_gameplay_state(
 
     if selected_fields == 5 {
         if count_selected_fields(&prev_frame_data.grid) != 5 {
-            return GameStateTransitionState::TransitionToNewState(GameStateType::Pause);
+            return UpdateBehaviourDesc { transition_state: GameStateTransitionState::TransitionToNewState(GameStateType::Pause), block_input : false }
         }
     }
 
     if selected_fields == 10 {
         if count_selected_fields(&prev_frame_data.grid) != 10 {
-            return GameStateTransitionState::ReturnToPreviousState;
+            return UpdateBehaviourDesc { transition_state : GameStateTransitionState::ReturnToPreviousState, block_input : false };
         }
     }
 
     // don't need to switch game states
-    GameStateTransitionState::Unchanged
+    UpdateBehaviourDesc { transition_state : GameStateTransitionState::Unchanged, block_input : false }
 }
 
 fn draw_pause_state(
@@ -531,7 +533,7 @@ fn main() {
                             (&x.frame_data1, &mut x.frame_data0)
                         };
 
-                        update_gameplay_state(prev_frame_params, frame_params, &mut messages, dt)
+                        update_gameplay_state(prev_frame_params, frame_params, &messages, dt)
                     }
 
                     GameStateData::Pause(x) => {
@@ -541,15 +543,19 @@ fn main() {
                             (&x.frame_data1, &mut x.frame_data0)
                         };
 
-                        update_pause_state(prev_frame_params, frame_params, &mut messages, dt)
+                        update_pause_state(prev_frame_params, frame_params, &messages, dt)
                     }
                 };
 
-                match state_status {
+				if state_status.block_input {
+					messages.clear();
+				}
+
+                match state_status.transition_state {
                     GameStateTransitionState::Unchanged => {}
                     _ => match next_game_state {
                         GameStateTransitionState::Unchanged => {
-                            next_game_state = state_status;
+                            next_game_state = state_status.transition_state;
                         }
                         _ => {
                             panic!("logic error, only one state transition per frame is allowed");
