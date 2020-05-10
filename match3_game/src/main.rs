@@ -54,7 +54,24 @@ fn parse_cmdline() -> CommandLineArgs {
 
 ///  -------------------- gameplay ---------------------
 
-struct GameplayStateStaticData { }
+struct GameplayStateStaticData<'a> { 
+	screen_space_quad_opaque_pso : PipelineStateObject<'a>,
+}
+
+impl GameplayStateStaticData<'_> {
+    fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> GameplayStateStaticData<'a> {
+
+		let screen_space_quad_opaque_pso: PipelineStateObject = create_pso(
+			&device_layer.device,
+			PipelineStateObjectDesc {
+				shader_name: "target_data/shaders/screen_space_quad",
+				premultiplied_alpha: false,
+			},
+		);
+
+        GameplayStateStaticData { screen_space_quad_opaque_pso }
+    }
+}
 
 struct PauseStateStaticData<'a> {
 	screen_space_quad_blended_pso : PipelineStateObject<'a>,
@@ -86,8 +103,8 @@ struct PauseStateFrameData {
     fade_in_status: f32,
 }
 
-struct GameplayState {
-    static_data: GameplayStateStaticData,
+struct GameplayState<'a> {
+    static_data: GameplayStateStaticData<'a>,
     frame_data0: GameplayStateFrameData,
     frame_data1: GameplayStateFrameData,
 }
@@ -105,7 +122,7 @@ pub enum GameStateType {
 }
 
 enum GameStateData<'a> {
-    Gameplay(GameplayState),
+    Gameplay(GameplayState<'a>),
     Pause(PauseState<'a>),
 }
 
@@ -287,10 +304,10 @@ fn draw_pause_state(
 }
 
 fn draw_gameplay_state(
+	static_data : &GameplayStateStaticData,
     frame_params: &GameplayStateFrameData,
     command_list: &mut GraphicsCommandList,
     backbuffer_rtv: &RenderTargetView,
-    screenspace_quad_pso: &PipelineStateObject,
     gpu_heap_data: &MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
@@ -298,7 +315,7 @@ fn draw_gameplay_state(
 
     begin_render_pass(command_list, color, backbuffer_rtv);
 
-    bind_pso(command_list, &screenspace_quad_pso);
+    bind_pso(command_list, &static_data.screen_space_quad_opaque_pso);
 
     for (y, row) in frame_params.grid.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {
@@ -374,15 +391,6 @@ fn main() {
         },
     };
 
-    // load the PSO required to draw the quad onto the screen
-    let screenspace_quad_pso: PipelineStateObject = create_pso(
-        &graphics_layer.device,
-        PipelineStateObjectDesc {
-            shader_name: "target_data/shaders/screen_space_quad",
-            premultiplied_alpha: false,
-        },
-    );
-
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
 
@@ -423,7 +431,7 @@ fn main() {
                 match x {
                     GameStateType::Gameplay => {
                         game_state_stack.push(GameStateData::Gameplay(GameplayState {
-                            static_data: GameplayStateStaticData {},
+                            static_data: GameplayStateStaticData::new (&graphics_layer),
                             frame_data0: GameplayStateFrameData {
                                 grid: { [[false; 5]; 6] },
                                 rnd_state: Xoroshiro128Rng {
@@ -547,18 +555,18 @@ fn main() {
 
         for state in game_state_stack.iter_mut() {
             match state {
-                GameStateData::Gameplay(x) => {
+                GameStateData::Gameplay(game_state) => {
                     let frame_params = if update_frame_number % 2 == 0 {
-                        & x.frame_data1
+                        & game_state.frame_data1
                     } else {
-                        & x.frame_data0
+                        & game_state.frame_data0
                     };
 
                     draw_gameplay_state(
+						&game_state.static_data,
 						frame_params,
                         &mut graphics_layer.graphics_command_list,
                         &graphics_layer.backbuffer_rtv,
-                        &screenspace_quad_pso,
                         &gpu_heap.gpu_data,
                         &mut gpu_heap.state);
                 }
