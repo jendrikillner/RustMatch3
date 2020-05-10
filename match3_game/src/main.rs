@@ -318,10 +318,12 @@ fn draw_pause_state(
 	static_state_data: &PauseStateStaticData,
     frame_params: &PauseStateFrameData,
     command_list: &mut GraphicsCommandList,
-    _backbuffer_rtv: &RenderTargetView,
+    backbuffer_rtv: &RenderTargetView,
     gpu_heap_data: &MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
+	begin_render_pass(command_list, backbuffer_rtv);
+
     bind_pso(command_list, & static_state_data.screen_space_quad_blended_pso );
 
     let obj_alloc = HeapAlloc::new(
@@ -354,7 +356,7 @@ fn draw_gameplay_state(
 ) {
     let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
 
-    begin_render_pass(command_list, color, backbuffer_rtv);
+    begin_render_pass_and_clear(command_list, color, backbuffer_rtv);
 
     bind_pso(command_list, &static_data.screen_space_quad_opaque_pso);
 

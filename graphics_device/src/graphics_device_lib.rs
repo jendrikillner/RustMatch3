@@ -578,18 +578,27 @@ pub fn create_pso<'a>(
     }
 }
 
-pub fn begin_render_pass(
+fn clear_render_target(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
-    rtv: &RenderTargetView,
-) {
-    unsafe {
+    rtv: &RenderTargetView)
+	{
+	    unsafe {
         let command_context = command_list.command_context.as_ref().unwrap();
 
         let rtv_mut: *mut ID3D11RenderTargetView =
             rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
 
         command_context.ClearRenderTargetView(rtv_mut, &clear_color);
+		}
+	}
+
+pub fn begin_render_pass(
+    command_list: &mut GraphicsCommandList,
+    rtv: &RenderTargetView )
+	{
+    unsafe {
+        let command_context = command_list.command_context.as_ref().unwrap();
 
         let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
             Height: rtv.height as f32,
@@ -603,10 +612,22 @@ pub fn begin_render_pass(
         // set viewport for the output window
         command_context.RSSetViewports(1, &viewport);
 
+		let rtv_mut: *mut ID3D11RenderTargetView =
+        rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
+
         // bind backbuffer as render target
         let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv_mut];
         command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
     }
+	}
+
+pub fn begin_render_pass_and_clear(
+    command_list: &mut GraphicsCommandList,
+    clear_color: [f32; 4],
+    rtv: &RenderTargetView,
+) {
+    begin_render_pass( command_list, rtv );
+	clear_render_target( command_list, clear_color, rtv );
 }
 
 pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObject) {
