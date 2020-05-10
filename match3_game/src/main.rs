@@ -54,41 +54,43 @@ fn parse_cmdline() -> CommandLineArgs {
 
 ///  -------------------- gameplay ---------------------
 
-struct GameplayStateStaticData<'a> { 
-	screen_space_quad_opaque_pso : PipelineStateObject<'a>,
+struct GameplayStateStaticData<'a> {
+    screen_space_quad_opaque_pso: PipelineStateObject<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
-    fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> GameplayStateStaticData<'a> {
+    fn new<'a>(device_layer: &GraphicsDeviceLayer) -> GameplayStateStaticData<'a> {
+        let screen_space_quad_opaque_pso: PipelineStateObject = create_pso(
+            &device_layer.device,
+            PipelineStateObjectDesc {
+                shader_name: "target_data/shaders/screen_space_quad",
+                premultiplied_alpha: false,
+            },
+        );
 
-		let screen_space_quad_opaque_pso: PipelineStateObject = create_pso(
-			&device_layer.device,
-			PipelineStateObjectDesc {
-				shader_name: "target_data/shaders/screen_space_quad",
-				premultiplied_alpha: false,
-			},
-		);
-
-        GameplayStateStaticData { screen_space_quad_opaque_pso }
+        GameplayStateStaticData {
+            screen_space_quad_opaque_pso,
+        }
     }
 }
 
 struct PauseStateStaticData<'a> {
-	screen_space_quad_blended_pso : PipelineStateObject<'a>,
+    screen_space_quad_blended_pso: PipelineStateObject<'a>,
 }
 
 impl PauseStateStaticData<'_> {
-    fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> PauseStateStaticData<'a> {
+    fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseStateStaticData<'a> {
+        let screen_space_quad_blended_pso: PipelineStateObject = create_pso(
+            &device_layer.device,
+            PipelineStateObjectDesc {
+                shader_name: "target_data/shaders/screen_space_quad",
+                premultiplied_alpha: true,
+            },
+        );
 
-		let screen_space_quad_blended_pso: PipelineStateObject = create_pso(
-			&device_layer.device,
-			PipelineStateObjectDesc {
-				shader_name: "target_data/shaders/screen_space_quad",
-				premultiplied_alpha: true,
-			},
-		);
-
-        PauseStateStaticData { screen_space_quad_blended_pso }
+        PauseStateStaticData {
+            screen_space_quad_blended_pso,
+        }
     }
 }
 
@@ -110,32 +112,32 @@ struct GameplayState<'a> {
 }
 
 impl GameplayStateFrameData {
-    fn new<'a>( ) -> GameplayStateFrameData {
-		GameplayStateFrameData {
+    fn new<'a>() -> GameplayStateFrameData {
+        GameplayStateFrameData {
             grid: { [[false; 5]; 6] },
             rnd_state: Xoroshiro128Rng {
                 state: [23480923840238, 459],
             },
         }
-	}
+    }
 }
 
 impl GameplayState<'_> {
-    fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> GameplayState<'a> {
-		GameplayState {
-                            static_data: GameplayStateStaticData::new (device_layer),
-                            frame_data0: GameplayStateFrameData::new(),
-                            frame_data1: GameplayStateFrameData::new(),
-                        }
-	}
+    fn new<'a>(device_layer: &GraphicsDeviceLayer) -> GameplayState<'a> {
+        GameplayState {
+            static_data: GameplayStateStaticData::new(device_layer),
+            frame_data0: GameplayStateFrameData::new(),
+            frame_data1: GameplayStateFrameData::new(),
+        }
+    }
 }
 
 impl PauseStateFrameData {
-    fn new<'a>( ) -> PauseStateFrameData {
-		PauseStateFrameData {
+    fn new<'a>() -> PauseStateFrameData {
+        PauseStateFrameData {
             fade_in_status: 0.0,
         }
-	}
+    }
 }
 
 struct PauseState<'a> {
@@ -145,13 +147,13 @@ struct PauseState<'a> {
 }
 
 impl PauseState<'_> {
-    fn new<'a>( device_layer : & GraphicsDeviceLayer ) -> PauseState<'a> {
-		PauseState { 
-			static_data: PauseStateStaticData::new(&device_layer),
-			frame_data0: PauseStateFrameData::new(),
+    fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseState<'a> {
+        PauseState {
+            static_data: PauseStateStaticData::new(&device_layer),
+            frame_data0: PauseStateFrameData::new(),
             frame_data1: PauseStateFrameData::new(),
         }
-	}
+    }
 }
 
 pub enum GameStateType {
@@ -182,12 +184,12 @@ fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
 }
 
 struct UpdateBehaviourDesc {
-	// tells the system if a state trasition is required
-	transition_state : GameStateTransitionState,
+    // tells the system if a state trasition is required
+    transition_state: GameStateTransitionState,
 
-	// this allows a state to block all input from reaching lower level frames
-	// could be extended so that only certain input values are blocked
-	block_input : bool,
+    // this allows a state to block all input from reaching lower level frames
+    // could be extended so that only certain input values are blocked
+    block_input: bool,
 }
 
 enum GameStateTransitionState {
@@ -208,14 +210,20 @@ fn update_pause_state(
     for x in messages.iter() {
         match x {
             WindowMessages::MouseLeftButtonDown => {
-                return UpdateBehaviourDesc { transition_state: GameStateTransitionState::ReturnToPreviousState, block_input : true }
+                return UpdateBehaviourDesc {
+                    transition_state: GameStateTransitionState::ReturnToPreviousState,
+                    block_input: true,
+                }
             }
 
             _ => {}
         }
     }
 
-    UpdateBehaviourDesc { transition_state: GameStateTransitionState::Unchanged, block_input : true }
+    UpdateBehaviourDesc {
+        transition_state: GameStateTransitionState::Unchanged,
+        block_input: true,
+    }
 }
 
 pub struct Xoroshiro128Rng {
@@ -300,31 +308,45 @@ fn update_gameplay_state(
 
     if selected_fields == 5 {
         if count_selected_fields(&prev_frame_data.grid) != 5 {
-            return UpdateBehaviourDesc { transition_state: GameStateTransitionState::TransitionToNewState(GameStateType::Pause), block_input : false }
+            return UpdateBehaviourDesc {
+                transition_state: GameStateTransitionState::TransitionToNewState(
+                    GameStateType::Pause,
+                ),
+                block_input: false,
+            };
         }
     }
 
     if selected_fields == 10 {
         if count_selected_fields(&prev_frame_data.grid) != 10 {
-            return UpdateBehaviourDesc { transition_state : GameStateTransitionState::ReturnToPreviousState, block_input : false };
+            return UpdateBehaviourDesc {
+                transition_state: GameStateTransitionState::ReturnToPreviousState,
+                block_input: false,
+            };
         }
     }
 
     // don't need to switch game states
-    UpdateBehaviourDesc { transition_state : GameStateTransitionState::Unchanged, block_input : false }
+    UpdateBehaviourDesc {
+        transition_state: GameStateTransitionState::Unchanged,
+        block_input: false,
+    }
 }
 
 fn draw_pause_state(
-	static_state_data: &PauseStateStaticData,
+    static_state_data: &PauseStateStaticData,
     frame_params: &PauseStateFrameData,
     command_list: &mut GraphicsCommandList,
     backbuffer_rtv: &RenderTargetView,
     gpu_heap_data: &MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
-	begin_render_pass(command_list, backbuffer_rtv);
+    begin_render_pass(command_list, backbuffer_rtv);
 
-    bind_pso(command_list, & static_state_data.screen_space_quad_blended_pso );
+    bind_pso(
+        command_list,
+        &static_state_data.screen_space_quad_blended_pso,
+    );
 
     let obj_alloc = HeapAlloc::new(
         ScreenSpaceQuadData {
@@ -347,7 +369,7 @@ fn draw_pause_state(
 }
 
 fn draw_gameplay_state(
-	static_data : &GameplayStateStaticData,
+    static_data: &GameplayStateStaticData,
     frame_params: &GameplayStateFrameData,
     command_list: &mut GraphicsCommandList,
     backbuffer_rtv: &RenderTargetView,
@@ -409,7 +431,7 @@ fn main() {
     let mut should_game_close = false;
 
     // afterwards open a window we can render into
-    let main_window: Window = create_window( 540, 960 ).unwrap();
+    let main_window: Window = create_window(540, 960).unwrap();
 
     let mut graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
@@ -459,7 +481,7 @@ fn main() {
 
         // for now just sleep
         // don't want to waste CPU resources rendering more frames
-		// this is a match3 game, 30fps will be fine
+        // this is a match3 game, 30fps will be fine
         if accumulator < dt {
             let sleep_duration = dt - accumulator;
 
@@ -468,16 +490,18 @@ fn main() {
 
         accumulator = dt;
 
-		// we are starting a new frame, do we need to transition to a new state?
+        // we are starting a new frame, do we need to transition to a new state?
         match next_game_state {
             GameStateTransitionState::TransitionToNewState(x) => {
                 match x {
                     GameStateType::Gameplay => {
-                        game_state_stack.push(GameStateData::Gameplay(GameplayState::new(&graphics_layer)));
+                        game_state_stack
+                            .push(GameStateData::Gameplay(GameplayState::new(&graphics_layer)));
                     }
 
                     GameStateType::Pause => {
-                        game_state_stack.push(GameStateData::Pause(PauseState::new(&graphics_layer)));
+                        game_state_stack
+                            .push(GameStateData::Pause(PauseState::new(&graphics_layer)));
                     }
                 }
 
@@ -549,9 +573,9 @@ fn main() {
                     }
                 };
 
-				if state_status.block_input {
-					messages.clear();
-				}
+                if state_status.block_input {
+                    messages.clear();
+                }
 
                 match state_status.transition_state {
                     GameStateTransitionState::Unchanged => {}
@@ -582,25 +606,26 @@ fn main() {
             match state {
                 GameStateData::Gameplay(game_state) => {
                     let frame_params = if update_frame_number % 2 == 0 {
-                        & game_state.frame_data1
+                        &game_state.frame_data1
                     } else {
-                        & game_state.frame_data0
+                        &game_state.frame_data0
                     };
 
                     draw_gameplay_state(
-						&game_state.static_data,
-						frame_params,
+                        &game_state.static_data,
+                        frame_params,
                         &mut graphics_layer.graphics_command_list,
                         &graphics_layer.backbuffer_rtv,
                         &gpu_heap.gpu_data,
-                        &mut gpu_heap.state);
+                        &mut gpu_heap.state,
+                    );
                 }
 
                 GameStateData::Pause(x) => {
                     let frame_params = if update_frame_number % 2 == 0 {
-                        & x.frame_data1
+                        &x.frame_data1
                     } else {
-                        & x.frame_data0
+                        &x.frame_data0
                     };
 
                     draw_pause_state(

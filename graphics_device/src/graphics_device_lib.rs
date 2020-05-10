@@ -211,8 +211,8 @@ impl Drop for GraphicsCommandList<'_> {
 
 pub struct RenderTargetView<'a> {
     pub native_view: &'a mut winapi::um::d3d11::ID3D11RenderTargetView,
-	width : i32,
-	height : i32
+    width: i32,
+    height: i32,
 }
 
 impl Drop for RenderTargetView<'_> {
@@ -445,12 +445,14 @@ pub fn create_device_graphics_layer<'a>(
 
         set_debug_name(command_context.as_ref().unwrap(), "Deferred Context");
 
-		let mut rect = winapi::shared::windef::RECT { bottom: 0, left: 0, right: 0, top: 0 };
+        let mut rect = winapi::shared::windef::RECT {
+            bottom: 0,
+            left: 0,
+            right: 0,
+            top: 0,
+        };
 
-		winapi::um::winuser::GetClientRect(
-		  hwnd,
-		  &mut rect
-		);
+        winapi::um::winuser::GetClientRect(hwnd, &mut rect);
 
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
@@ -462,8 +464,8 @@ pub fn create_device_graphics_layer<'a>(
             backbuffer_texture,
             backbuffer_rtv: RenderTargetView {
                 native_view: backbuffer_rtv.as_mut().unwrap(),
-				width : rect.right,
-				height: rect.bottom,
+                width: rect.right,
+                height: rect.bottom,
             },
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
@@ -581,28 +583,25 @@ pub fn create_pso<'a>(
 fn clear_render_target(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
-    rtv: &RenderTargetView)
-	{
-	    unsafe {
+    rtv: &RenderTargetView,
+) {
+    unsafe {
         let command_context = command_list.command_context.as_ref().unwrap();
 
         let rtv_mut: *mut ID3D11RenderTargetView =
             rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
 
         command_context.ClearRenderTargetView(rtv_mut, &clear_color);
-		}
-	}
+    }
+}
 
-pub fn begin_render_pass(
-    command_list: &mut GraphicsCommandList,
-    rtv: &RenderTargetView )
-	{
+pub fn begin_render_pass(command_list: &mut GraphicsCommandList, rtv: &RenderTargetView) {
     unsafe {
         let command_context = command_list.command_context.as_ref().unwrap();
 
         let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
             Height: rtv.height as f32,
-            Width:  rtv.width as f32,
+            Width: rtv.width as f32,
             MinDepth: 0.0,
             MaxDepth: 1.0,
             TopLeftX: 0.0,
@@ -612,22 +611,22 @@ pub fn begin_render_pass(
         // set viewport for the output window
         command_context.RSSetViewports(1, &viewport);
 
-		let rtv_mut: *mut ID3D11RenderTargetView =
-        rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
+        let rtv_mut: *mut ID3D11RenderTargetView =
+            rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
 
         // bind backbuffer as render target
         let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv_mut];
         command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
     }
-	}
+}
 
 pub fn begin_render_pass_and_clear(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
     rtv: &RenderTargetView,
 ) {
-    begin_render_pass( command_list, rtv );
-	clear_render_target( command_list, clear_color, rtv );
+    begin_render_pass(command_list, rtv);
+    clear_render_target(command_list, clear_color, rtv);
 }
 
 pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObject) {
