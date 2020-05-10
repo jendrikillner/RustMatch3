@@ -410,7 +410,7 @@ fn main() {
     let mut graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
 
-    let mut frame_params0 = FrameParams {
+    let mut engine_frame_params0 = FrameParams {
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
@@ -420,7 +420,7 @@ fn main() {
         },
     };
 
-    let mut frame_params1 = FrameParams {
+    let mut engine_frame_params1 = FrameParams {
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
@@ -498,10 +498,10 @@ fn main() {
             GameStateTransitionState::Unchanged => {}
         }
 
-        let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
-            (&frame_params1, &mut frame_params0)
+        let (_prev_engine_frame_params, engine_frame_params) = if update_frame_number % 2 == 0 {
+            (&engine_frame_params1, &mut engine_frame_params0)
         } else {
-            (&frame_params0, &mut frame_params1)
+            (&engine_frame_params0, &mut engine_frame_params1)
         };
 
         while accumulator >= dt {
@@ -564,7 +564,7 @@ fn main() {
         // draw the game
         let mut gpu_heap = LinearAllocator {
             gpu_data: map_gpu_buffer(
-                &frame_params.cpu_render.frame_constant_buffer,
+                &engine_frame_params.cpu_render.frame_constant_buffer,
                 &graphics_layer,
             ),
             state: LinearAllocatorState { used_bytes: 0 },
