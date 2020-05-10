@@ -109,10 +109,6 @@ enum GameStateData<'a> {
     Pause(PauseState<'a>),
 }
 
-//struct GameState {
-//	state_data : GameStateData,
-//}
-
 // data for each displayed frame
 // frame = "A piece of data that is processed and ultimately displayed on screen"
 struct FrameParams {
@@ -298,8 +294,6 @@ fn draw_gameplay_state(
     gpu_heap_data: &MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
-    // draw
-
     let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
 
     begin_render_pass(command_list, color, backbuffer_rtv);
@@ -349,13 +343,6 @@ fn draw_gameplay_state(
     }
 }
 
-// todo, update the logic todo the following
-// 1. user presses the left mouse button, this will open the pause menu
-// 2. the pause menu blocks input from reaching the gameplay state
-// 3. enable alpha blending for the pause menu overlay
-// 4. slowly blend to a dark black overlay in around 2 seconds orso
-// 5. once the maximum has been reached, a left click will fade out the black screen and allow the gameplay logic to receive input again
-
 fn main() {
     let args: CommandLineArgs = parse_cmdline();
 
@@ -388,7 +375,6 @@ fn main() {
     };
 
     // load the PSO required to draw the quad onto the screen
-
     let screenspace_quad_pso: PipelineStateObject = create_pso(
         &graphics_layer.device,
         PipelineStateObjectDesc {
@@ -410,12 +396,6 @@ fn main() {
     while !should_game_close {
         let new_time = std::time::Instant::now();
 
-        // at the start of the frame we allocate a new FrameParam
-        // frame params are created during updated, passing through the following stages
-        // update
-        // cpu render
-        // gpu render
-
         // calculate how much time has passed
         let frame_time = f32::min(
             as_fractional_secs(&new_time.duration_since(current_time)),
@@ -428,6 +408,7 @@ fn main() {
 
         // for now just sleep
         // don't want to waste CPU resources rendering more frames
+		// this is a match3 game, 30fps will be fine
         if accumulator < dt {
             let sleep_duration = dt - accumulator;
 
@@ -550,8 +531,6 @@ fn main() {
                         }
                     },
                 }
-
-                // next_game_state = state_status;
             }
 
             update_frame_number += 1;
