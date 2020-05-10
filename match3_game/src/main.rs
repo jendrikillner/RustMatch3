@@ -6,10 +6,11 @@ pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
 }
 
 #[repr(C)]
-struct Float3 {
+struct Float4 {
     x: f32,
     y: f32,
     z: f32,
+    a: f32,
 }
 
 #[repr(C)]
@@ -20,8 +21,7 @@ struct Float2 {
 
 #[repr(C)]
 struct ScreenSpaceQuadData {
-    color: Float3,
-    padding: f32,
+    color: Float4,
     scale: Float2,
     position: Float2,
 }
@@ -52,6 +52,242 @@ fn parse_cmdline() -> CommandLineArgs {
     }
 }
 
+enum GameStateType {
+    //MainMenu,
+    Pause,
+    Gameplay,
+}
+
+///  -------------------- gameplay ---------------------
+
+struct GameplayStateStaticData {}
+struct PauseStateStaticData {}
+
+struct GameplayStateFrameData {
+    // the state of the grid
+    grid: [[bool; 5]; 6],
+}
+
+struct PauseStateFrameData {
+    fade_in_status: f32,
+}
+
+enum GameStateStaticData {
+    Gameplay(GameplayStateStaticData),
+    Pause(PauseStateStaticData),
+}
+
+enum GameStateFrameData {
+    Gameplay(GameplayStateFrameData),
+    Pause(PauseStateFrameData),
+}
+
+//struct GameState {
+//	state_data : GameStateData,
+//}
+
+// data for each displayed frame
+// frame = "A piece of data that is processed and ultimately displayed on screen"
+struct FrameParams {
+    cpu_render: CpuRenderFrameData,
+
+    // if inside a gameplay
+    gameplay_data: Vec<GameStateFrameData>,
+}
+
+fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
+    if x > max {
+        max
+    } else if x < min {
+        min
+    } else {
+        x
+    }
+}
+
+enum UpdateGameStatus {
+    Unchanged,
+    TransitionToNewState(GameStateType),
+    RemoveState,
+}
+
+fn update_pause_state(
+    prev_frame_params: &PauseStateFrameData,
+    frame_params: &mut PauseStateFrameData,
+    messages: &mut Vec<WindowMessages>,
+    dt: f32,
+) -> UpdateGameStatus {
+    // fade in the screen state
+    frame_params.fade_in_status = clamp(prev_frame_params.fade_in_status + dt, 0.0, 1.0);
+
+    for x in messages.iter() {
+        match x {
+            WindowMessages::MouseLeftButtonDown => {
+                // block all input from reaching game states below
+                messages.clear();
+
+                return UpdateGameStatus::RemoveState;
+            }
+
+            _ => {}
+        }
+    }
+
+    // block all input from reaching game states below
+    messages.clear();
+
+    // todo: add support for reading input and closing the state again
+    UpdateGameStatus::Unchanged
+}
+
+fn update_gameplay_state(
+    prev_frame_data: &GameplayStateFrameData,
+    frame_data: &mut GameplayStateFrameData,
+    messages: &mut Vec<WindowMessages>,
+    _dt: f32,
+) -> UpdateGameStatus {
+    
+	// copy the state of the previous state as starting point
+    frame_data.grid = prev_frame_data.grid;
+
+	let rnd_row = 5;
+    let rnd_col = 4;
+
+    for x in messages {
+        match x {
+            WindowMessages::MousePositionChanged(pos) => {
+                println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+            }
+
+            WindowMessages::MouseLeftButtonDown => {
+                println!("mouse:left down");
+
+                frame_data.grid[rnd_row][rnd_col] = true;
+
+                return UpdateGameStatus::TransitionToNewState(GameStateType::Pause);
+            }
+
+            WindowMessages::MouseLeftButtonUp => {
+                println!("mouse:left up");
+            }
+
+            WindowMessages::MouseFocusGained => {
+                println!("mouse:focus gained");
+            }
+
+            WindowMessages::MouseFocusLost => {
+                println!("mouse:focus lost");
+            }
+
+            WindowMessages::WindowClosed => {
+                panic!();
+            } // this should never happen, handled by higher level code
+            WindowMessages::WindowCreated(_x) => {
+                panic!();
+            } // this should never happen
+        }
+    }
+
+    // don't need to switch game states
+    UpdateGameStatus::Unchanged
+}
+
+fn draw_pause_state(
+    frame_params: &PauseStateFrameData,
+    command_list: &mut GraphicsCommandList,
+    _backbuffer_rtv: &RenderTargetView,
+    screenspace_quad_pso: &PipelineStateObject,
+    gpu_heap_data: &MappedGpuData,
+    gpu_heap_state: &mut LinearAllocatorState,
+) {
+    bind_pso(command_list, &screenspace_quad_pso);
+
+    let obj_alloc = HeapAlloc::new(
+        ScreenSpaceQuadData {
+            color: Float4 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                a: frame_params.fade_in_status * 0.8,
+            },
+            scale: Float2 { x: 1.0, y: 1.0 },
+            position: Float2 { x: 0.0, y: 0.0 },
+        },
+        gpu_heap_data,
+        gpu_heap_state,
+    );
+
+    bind_constant(command_list, 0, &obj_alloc);
+
+    draw_vertices(command_list, 4);
+}
+
+fn draw_gameplay_state(
+    frame_params: &GameplayStateFrameData,
+    command_list: &mut GraphicsCommandList,
+    backbuffer_rtv: &RenderTargetView,
+    screenspace_quad_pso: &PipelineStateObject,
+    gpu_heap_data: &MappedGpuData,
+    gpu_heap_state: &mut LinearAllocatorState,
+) {
+    // draw
+
+    let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
+
+    begin_render_pass(command_list, color, backbuffer_rtv);
+
+    bind_pso(command_list, &screenspace_quad_pso);
+
+    for (y, row) in frame_params.grid.iter().enumerate() {
+        for (x, column) in row.iter().enumerate() {
+            let x_offset_in_pixels = (x as f32) * 180.0;
+            let y_offset_in_pixels = (y as f32) * 180.0;
+
+            // allocate the constants for this draw call
+            let obj_alloc = HeapAlloc::new(
+                ScreenSpaceQuadData {
+                    color: if !column {
+                        Float4 {
+                            x: 1.0,
+                            y: 0.0,
+                            z: 0.0,
+                            a: 1.0,
+                        }
+                    } else {
+                        Float4 {
+                            x: 0.0,
+                            y: 1.0,
+                            z: 0.0,
+                            a: 1.0,
+                        }
+                    },
+                    scale: Float2 {
+                        x: (90.0 / 540.0),
+                        y: (90.0 / 960.0),
+                    },
+                    position: Float2 {
+                        x: (90.0 / 540.0) * -4.0 + x_offset_in_pixels / 540.0,
+                        y: (90.0 / 960.0) * 6.0 - y_offset_in_pixels / 960.0,
+                    },
+                },
+                gpu_heap_data,
+                gpu_heap_state,
+            );
+
+            bind_constant(command_list, 0, &obj_alloc);
+
+            draw_vertices(command_list, 4);
+        }
+    }
+}
+
+// todo, update the logic todo the following
+// 1. user presses the left mouse button, this will open the pause menu
+// 2. the pause menu blocks input from reaching the gameplay state
+// 3. enable alpha blending for the pause menu overlay
+// 4. slowly blend to a dark black overlay in around 2 seconds orso
+// 5. once the maximum has been reached, a left click will fade out the black screen and allow the gameplay logic to receive input again
+
 fn main() {
     let args: CommandLineArgs = parse_cmdline();
 
@@ -63,73 +299,62 @@ fn main() {
     let mut graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
 
-    // create data required for each frame
-    let cpu_render_frame_data: [CpuRenderFrameData; 2] = [
-        CpuRenderFrameData {
+    let mut frame_params0 = FrameParams {
+        gameplay_data: Vec::new(),
+        cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
                 1024 * 8,
                 "Frame 0 Constants",
             ),
         },
-        CpuRenderFrameData {
+    };
+
+    let mut frame_params1 = FrameParams {
+        gameplay_data: Vec::new(),
+        cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
                 1024 * 8,
                 "Frame 1 Constants",
             ),
         },
-    ];
+    };
 
     // load the PSO required to draw the quad onto the screen
 
-    let pso_desc = PipelineStateObjectDesc {
-        shader_name: "target_data/shaders/screen_space_quad",
-    };
-
-    let screenspace_quad_pso: PipelineStateObject = create_pso(&graphics_layer.device, pso_desc);
+    let screenspace_quad_pso: PipelineStateObject = create_pso(
+        &graphics_layer.device,
+        PipelineStateObjectDesc {
+            shader_name: "target_data/shaders/screen_space_quad",
+            premultiplied_alpha: false,
+        },
+    );
+    let screenspace_quad_blended_pso: PipelineStateObject = create_pso(
+        &graphics_layer.device,
+        PipelineStateObjectDesc {
+            shader_name: "target_data/shaders/screen_space_quad",
+            premultiplied_alpha: true,
+        },
+    );
 
     let dt: f32 = 1.0 / 60.0;
     let mut accumulator: f32 = dt;
 
     let mut current_time = std::time::Instant::now();
-    let mut draw_frame_number: u64 = 0;
+    let mut update_frame_number: u64 = 0;
 
-    let mut timer_update = 0.0;
+    let mut game_state_stack: Vec<GameStateStaticData> = Vec::new();
+    let mut next_game_state = Some(GameStateType::Gameplay);
 
     while !should_game_close {
         let new_time = std::time::Instant::now();
 
-        while let Some(x) = process_window_messages(&main_window) {
-            match x {
-                WindowMessages::MousePositionChanged(pos) => {
-                    println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
-                }
-
-                WindowMessages::MouseLeftButtonDown => {
-                    println!("mouse:left down");
-                }
-
-                WindowMessages::MouseLeftButtonUp => {
-                    println!("mouse:left up");
-                }
-
-                WindowMessages::MouseFocusGained => {
-                    println!("mouse:focus gained");
-                }
-
-                WindowMessages::MouseFocusLost => {
-                    println!("mouse:focus lost");
-                }
-
-                WindowMessages::WindowClosed => {
-                    should_game_close = true;
-                }
-                WindowMessages::WindowCreated(_x) => {
-                    panic!();
-                } // this should never happen
-            }
-        }
+        // at the start of the frame we allocate a new FrameParam
+        // frame params are created during updated, passing through the following stages
+        // update
+        // cpu render
+        // gpu render
 
         // calculate how much time has passed
         let frame_time = f32::min(
@@ -141,64 +366,145 @@ fn main() {
 
         current_time = new_time;
 
-        while accumulator >= dt {
-            timer_update += dt;
+        // for now just sleep
+        // don't want to waste CPU resources rendering more frames
+        if accumulator < dt {
+            let sleep_duration = dt - accumulator;
 
+            std::thread::sleep(std::time::Duration::from_secs_f32(sleep_duration));
+        }
+
+        accumulator = dt;
+
+        // we are starting a new frame, do we need to transition to a new state?
+        match next_game_state {
+            Some(x) => {
+                match x {
+                    GameStateType::Gameplay => {
+                        game_state_stack
+                            .push(GameStateStaticData::Gameplay(GameplayStateStaticData {}));
+
+                        // also create the frame data in all instances of the frame data
+                        frame_params0
+                            .gameplay_data
+                            .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
+                                grid: { [[false; 5]; 6] },
+                            }));
+
+                        frame_params1
+                            .gameplay_data
+                            .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
+                                grid: { [[false; 5]; 6] },
+                            }));
+                    }
+
+                    GameStateType::Pause => {
+                        game_state_stack.push(GameStateStaticData::Pause(PauseStateStaticData {}));
+
+                        // also create the frame data in all instances of the frame data
+                        frame_params0.gameplay_data.push(GameStateFrameData::Pause(
+                            PauseStateFrameData {
+                                fade_in_status: 0.0,
+                            },
+                        ));
+
+                        frame_params1.gameplay_data.push(GameStateFrameData::Pause(
+                            PauseStateFrameData {
+                                fade_in_status: 0.0,
+                            },
+                        ));
+                    }
+                }
+
+                // make sure to reset the state
+                next_game_state = None;
+            }
+
+            None => {}
+        }
+
+        let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
+            (&frame_params1, &mut frame_params0)
+        } else {
+            (&frame_params0, &mut frame_params1)
+        };
+
+        while accumulator >= dt {
             // update the game for a fixed number of steps
             accumulator -= dt;
+
+            let mut messages: Vec<WindowMessages> = Vec::new();
+
+            while let Some(x) = process_window_messages(&main_window) {
+                match x {
+                    WindowMessages::WindowClosed => {
+                        should_game_close = true;
+                    }
+                    WindowMessages::WindowCreated(_x) => {
+                        panic!();
+                    } // this should never happen
+                    _ => messages.push(x),
+                }
+            }
+
+            for i in (0..frame_params.gameplay_data.len()).rev() {
+                let state_status = match (
+                    frame_params.gameplay_data.get_mut(i).unwrap(),
+                    prev_frame_params.gameplay_data.get(i).unwrap(),
+                ) {
+                    (GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
+                        update_gameplay_state(y, x, &mut messages, dt)
+                    }
+                    (GameStateFrameData::Pause(x), GameStateFrameData::Pause(y)) => {
+                        update_pause_state(y, x, &mut messages, dt)
+                    }
+                    _ => panic!("unexpeced combination of states"),
+                };
+
+                match state_status {
+                    UpdateGameStatus::Unchanged => {}
+                    UpdateGameStatus::TransitionToNewState(x) => {
+                        next_game_state = Some(x);
+                    }
+                    UpdateGameStatus::RemoveState => {
+                        // need to handle this case
+                    }
+                }
+            }
+
+            update_frame_number += 1;
         }
 
         // draw the game
-        let _subframe_blend = accumulator / dt;
-
-        let timer_draw = timer_update + accumulator;
-
-        // draw
-
-        let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
-        let frame_data: &CpuRenderFrameData =
-            &cpu_render_frame_data[draw_frame_number as usize % cpu_render_frame_data.len()];
-
         let mut gpu_heap = LinearAllocator {
-            gpu_data: map_gpu_buffer(&frame_data.frame_constant_buffer, &graphics_layer),
+            gpu_data: map_gpu_buffer(
+                &frame_params.cpu_render.frame_constant_buffer,
+                &graphics_layer,
+            ),
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
-        begin_render_pass(
-            &mut graphics_layer.graphics_command_list,
-            color,
-            &graphics_layer.backbuffer_rtv,
-        );
+        for i in 0..frame_params.gameplay_data.len() {
+            match frame_params.gameplay_data.get_mut(i).unwrap() {
+                GameStateFrameData::Gameplay(x) => draw_gameplay_state(
+                    x,
+                    &mut graphics_layer.graphics_command_list,
+                    &graphics_layer.backbuffer_rtv,
+                    &screenspace_quad_pso,
+                    &gpu_heap.gpu_data,
+                    &mut gpu_heap.state,
+                ),
 
-        let cycle_length_seconds = 2.0;
-
-        let color = Float3 {
-            x: f32::sin(2.0 * std::f32::consts::PI * (timer_draw / cycle_length_seconds)) * 0.5
-                + 0.5,
-            y: 0.0,
-            z: 0.0,
-        };
-
-        // allocate the constants for this draw call
-        let obj1_alloc = HeapAlloc::new(
-            ScreenSpaceQuadData {
-                color,
-                padding: 0.0,
-                scale: Float2 { x: 0.5, y: 0.5 },
-                position: Float2 { x: 0.0, y: 0.0 },
-            },
-            &gpu_heap.gpu_data,
-            &mut gpu_heap.state,
-        );
-
-        bind_pso(
-            &mut graphics_layer.graphics_command_list,
-            &screenspace_quad_pso,
-        );
-
-        bind_constant(&mut graphics_layer.graphics_command_list, 0, &obj1_alloc);
-
-        draw_vertices(&mut graphics_layer.graphics_command_list, 4);
+                GameStateFrameData::Pause(x) => draw_pause_state(
+                    x,
+                    &mut graphics_layer.graphics_command_list,
+                    &graphics_layer.backbuffer_rtv,
+                    &screenspace_quad_blended_pso,
+                    &gpu_heap.gpu_data,
+                    &mut gpu_heap.state,
+                ),
+            };
+        }
 
         // unmap the gpu buffer
         // from this point onwards we are unable to allocate further memory
@@ -207,7 +513,5 @@ fn main() {
         execute_command_list(&graphics_layer, &graphics_layer.graphics_command_list);
 
         present_swapchain(&graphics_layer);
-
-        draw_frame_number += 1;
     }
 }
