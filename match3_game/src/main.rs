@@ -546,7 +546,7 @@ fn main() {
         };
 
         for state in game_state_stack.iter_mut() {
-            let state_status = match state {
+            match state {
                 GameStateData::Gameplay(x) => {
                     let frame_params = if update_frame_number % 2 == 0 {
                         & x.frame_data1
