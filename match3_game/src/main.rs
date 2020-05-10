@@ -66,6 +66,8 @@ struct PauseStateStaticData {}
 struct GameplayStateFrameData {
     // the state of the grid
     grid: [[bool; 5]; 6],
+
+    rnd_state: Xoroshiro128Rng,
 }
 
 struct PauseStateFrameData {
@@ -140,6 +142,36 @@ fn update_pause_state(
     GameStateTransitionState::Unchanged
 }
 
+pub struct Xoroshiro128Rng {
+    state: [u64; 2],
+}
+
+fn rnd_next_u64(rnd: &mut Xoroshiro128Rng) -> u64 {
+    let s0 = rnd.state[0];
+    let mut s1 = rnd.state[1];
+    let result = s0.wrapping_add(s1);
+
+    s1 ^= s0;
+    rnd.state[0] = s0.rotate_left(24) ^ s1 ^ (s1 << 16);
+    rnd.state[1] = s1.rotate_left(37);
+
+    result
+}
+
+fn count_selected_fields(grid: &[[bool; 5]; 6]) -> i32 {
+    let mut count = 0;
+
+    for (y, row) in grid.iter().enumerate() {
+        for (x, _column) in row.iter().enumerate() {
+            if grid[y][x] {
+                count += 1;
+            }
+        }
+    }
+
+    count
+}
+
 fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
@@ -149,9 +181,6 @@ fn update_gameplay_state(
     // copy the state of the previous state as starting point
     frame_data.grid = prev_frame_data.grid;
 
-    let rnd_row = 5;
-    let rnd_col = 4;
-
     for x in messages {
         match x {
             WindowMessages::MousePositionChanged(pos) => {
@@ -159,11 +188,11 @@ fn update_gameplay_state(
             }
 
             WindowMessages::MouseLeftButtonDown => {
-                println!("mouse:left down");
+                // pick a random slot
+                let rnd_row = (rnd_next_u64(&mut frame_data.rnd_state) % 6) as usize;
+                let rnd_col = (rnd_next_u64(&mut frame_data.rnd_state) % 5) as usize;
 
                 frame_data.grid[rnd_row][rnd_col] = true;
-
-                return GameStateTransitionState::TransitionToNewState(GameStateType::Pause);
             }
 
             WindowMessages::MouseLeftButtonUp => {
@@ -184,6 +213,23 @@ fn update_gameplay_state(
             WindowMessages::WindowCreated(_x) => {
                 panic!();
             } // this should never happen
+        }
+    }
+
+    // count the number of selected fields
+    // open the pause after 5
+    // and close the game after 10
+    let selected_fields = count_selected_fields(&frame_data.grid);
+
+    if selected_fields == 5 {
+        if count_selected_fields(&prev_frame_data.grid) != 5 {
+            return GameStateTransitionState::TransitionToNewState(GameStateType::Pause);
+        }
+    }
+
+    if selected_fields == 10 {
+        if count_selected_fields(&prev_frame_data.grid) != 10 {
+            return GameStateTransitionState::RemoveState;
         }
     }
 
@@ -389,12 +435,18 @@ fn main() {
                             .gameplay_data
                             .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
                                 grid: { [[false; 5]; 6] },
+                                rnd_state: Xoroshiro128Rng {
+                                    state: [29384739284, 23480923840238],
+                                },
                             }));
 
                         frame_params1
                             .gameplay_data
                             .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
                                 grid: { [[false; 5]; 6] },
+                                rnd_state: Xoroshiro128Rng {
+                                    state: [23480923840238, 29384739284],
+                                },
                             }));
                     }
 
@@ -426,6 +478,12 @@ fn main() {
 
                 frame_params0.gameplay_data.pop();
                 frame_params1.gameplay_data.pop();
+
+                // close the game once all game states have been deleted
+                if game_state_stack.len() == 0 {
+                    should_game_close = true;
+                    continue;
+                }
 
                 // make sure to reset the state
                 next_game_state = GameStateTransitionState::Unchanged;
