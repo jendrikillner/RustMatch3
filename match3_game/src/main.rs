@@ -52,12 +52,6 @@ fn parse_cmdline() -> CommandLineArgs {
     }
 }
 
-enum GameStateType {
-    //MainMenu,
-    Pause,
-    Gameplay,
-}
-
 ///  -------------------- gameplay ---------------------
 
 struct GameplayStateStaticData { }
@@ -92,14 +86,27 @@ struct PauseStateFrameData {
     fade_in_status: f32,
 }
 
-enum GameStateStaticData<'a> {
-    Gameplay(GameplayStateStaticData),
-    Pause(PauseStateStaticData<'a>),
+struct GameplayState {
+    static_data: GameplayStateStaticData,
+    frame_data0: GameplayStateFrameData,
+    frame_data1: GameplayStateFrameData,
 }
 
-enum GameStateFrameData {
-    Gameplay(GameplayStateFrameData),
-    Pause(PauseStateFrameData),
+struct PauseState<'a> {
+    static_data: PauseStateStaticData<'a>,
+    frame_data0: PauseStateFrameData,
+    frame_data1: PauseStateFrameData,
+}
+
+pub enum GameStateType {
+    //MainMenu,
+    Pause,
+    Gameplay,
+}
+
+enum GameStateData<'a> {
+    Gameplay(GameplayState),
+    Pause(PauseState<'a>),
 }
 
 //struct GameState {
@@ -110,9 +117,6 @@ enum GameStateFrameData {
 // frame = "A piece of data that is processed and ultimately displayed on screen"
 struct FrameParams {
     cpu_render: CpuRenderFrameData,
-
-    // if inside a gameplay
-    gameplay_data: Vec<GameStateFrameData>,
 }
 
 fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
@@ -364,7 +368,6 @@ fn main() {
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
 
     let mut frame_params0 = FrameParams {
-        gameplay_data: Vec::new(),
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
@@ -375,7 +378,6 @@ fn main() {
     };
 
     let mut frame_params1 = FrameParams {
-        gameplay_data: Vec::new(),
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
@@ -401,7 +403,7 @@ fn main() {
     let mut current_time = std::time::Instant::now();
     let mut update_frame_number: u64 = 0;
 
-    let mut game_state_stack: Vec<GameStateStaticData> = Vec::new();
+    let mut game_state_stack: Vec<GameStateData> = Vec::new();
     let mut next_game_state: GameStateTransitionState =
         GameStateTransitionState::TransitionToNewState(GameStateType::Gameplay);
 
@@ -434,49 +436,38 @@ fn main() {
 
         accumulator = dt;
 
-        // we are starting a new frame, do we need to transition to a new state?
+		// we are starting a new frame, do we need to transition to a new state?
         match next_game_state {
             GameStateTransitionState::TransitionToNewState(x) => {
                 match x {
                     GameStateType::Gameplay => {
-                        game_state_stack
-                            .push(GameStateStaticData::Gameplay(GameplayStateStaticData {}));
-
-                        // also create the frame data in all instances of the frame data
-                        frame_params0
-                            .gameplay_data
-                            .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
+                        game_state_stack.push(GameStateData::Gameplay(GameplayState {
+                            static_data: GameplayStateStaticData {},
+                            frame_data0: GameplayStateFrameData {
                                 grid: { [[false; 5]; 6] },
                                 rnd_state: Xoroshiro128Rng {
-                                    state: [29384739284, 23480923840238],
+                                    state: [23480923840238, 459],
                                 },
-                            }));
-
-                        frame_params1
-                            .gameplay_data
-                            .push(GameStateFrameData::Gameplay(GameplayStateFrameData {
+                            },
+                            frame_data1: GameplayStateFrameData {
                                 grid: { [[false; 5]; 6] },
                                 rnd_state: Xoroshiro128Rng {
-                                    state: [23480923840238, 29384739284],
+                                    state: [23480923840238, 459],
                                 },
-                            }));
+                            },
+                        }));
                     }
 
                     GameStateType::Pause => {
-                        game_state_stack.push(GameStateStaticData::Pause(PauseStateStaticData::new(&graphics_layer) ));
-
-                        // also create the frame data in all instances of the frame data
-                        frame_params0.gameplay_data.push(GameStateFrameData::Pause(
-                            PauseStateFrameData {
+                        game_state_stack.push(GameStateData::Pause(PauseState {
+                            static_data: PauseStateStaticData::new(&graphics_layer),
+                            frame_data0: PauseStateFrameData {
                                 fade_in_status: 0.0,
                             },
-                        ));
-
-                        frame_params1.gameplay_data.push(GameStateFrameData::Pause(
-                            PauseStateFrameData {
+                            frame_data1: PauseStateFrameData {
                                 fade_in_status: 0.0,
                             },
-                        ));
+                        }));
                     }
                 }
 
@@ -487,9 +478,6 @@ fn main() {
             GameStateTransitionState::ReturnToPreviousState => {
                 // remove the top most state from the stack
                 game_state_stack.pop();
-
-                frame_params0.gameplay_data.pop();
-                frame_params1.gameplay_data.pop();
 
                 // close the game once all game states have been deleted
                 if game_state_stack.len() == 0 {
@@ -528,19 +516,27 @@ fn main() {
                 }
             }
 
-            for i in (0..frame_params.gameplay_data.len()).rev() {
-                let state_status = match (
-					game_state_stack.get_mut(i).unwrap(),
-                    frame_params.gameplay_data.get_mut(i).unwrap(),
-                    prev_frame_params.gameplay_data.get(i).unwrap(),
-                ) {
-                    ( GameStateStaticData::Gameplay(_static_data), GameStateFrameData::Gameplay(x), GameStateFrameData::Gameplay(y)) => {
-                        update_gameplay_state(y, x, &mut messages, dt)
+            for state in game_state_stack.iter_mut().rev() {
+                let state_status = match state {
+                    GameStateData::Gameplay(x) => {
+                        let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
+                            (&x.frame_data0, &mut x.frame_data1)
+                        } else {
+                            (&x.frame_data1, &mut x.frame_data0)
+                        };
+
+                        update_gameplay_state(prev_frame_params, frame_params, &mut messages, dt)
                     }
-                    ( GameStateStaticData::Pause(_static_data), GameStateFrameData::Pause(x), GameStateFrameData::Pause(y)) => {
-                        update_pause_state(y, x, &mut messages, dt)
+
+                    GameStateData::Pause(x) => {
+                        let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
+                            (&x.frame_data0, &mut x.frame_data1)
+                        } else {
+                            (&x.frame_data1, &mut x.frame_data0)
+                        };
+
+                        update_pause_state(prev_frame_params, frame_params, &mut messages, dt)
                     }
-                    _ => panic!("unexpeced combination of states"),
                 };
 
                 match state_status {
@@ -570,28 +566,40 @@ fn main() {
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
-        for i in 0..frame_params.gameplay_data.len() {
-            match (
-				game_state_stack.get_mut(i).unwrap(),
-				frame_params.gameplay_data.get_mut(i).unwrap() ) {
-                (GameStateStaticData::Gameplay(_static_data), GameStateFrameData::Gameplay(x)) => draw_gameplay_state(
-                    x,
-                    &mut graphics_layer.graphics_command_list,
-                    &graphics_layer.backbuffer_rtv,
-                    &screenspace_quad_pso,
-                    &gpu_heap.gpu_data,
-                    &mut gpu_heap.state,
-                ),
+        for state in game_state_stack.iter_mut() {
+            let state_status = match state {
+                GameStateData::Gameplay(x) => {
+                    let (_prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
+                        (&x.frame_data0, &mut x.frame_data1)
+                    } else {
+                        (&x.frame_data1, &mut x.frame_data0)
+                    };
 
-                (GameStateStaticData::Pause(static_data), GameStateFrameData::Pause(x)) => draw_pause_state(
-					static_data,
-                    x,
-                    &mut graphics_layer.graphics_command_list,
-                    &graphics_layer.backbuffer_rtv,
-                    &gpu_heap.gpu_data,
-                    &mut gpu_heap.state,
-                ),
-				_ => panic!("unexpeced combination of states"),
+                    draw_gameplay_state(
+						frame_params,
+                        &mut graphics_layer.graphics_command_list,
+                        &graphics_layer.backbuffer_rtv,
+                        &screenspace_quad_pso,
+                        &gpu_heap.gpu_data,
+                        &mut gpu_heap.state);
+                }
+
+                GameStateData::Pause(x) => {
+                    let (_prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
+                        (&x.frame_data0, &mut x.frame_data1)
+                    } else {
+                        (&x.frame_data1, &mut x.frame_data0)
+                    };
+
+                    draw_pause_state(
+                        &x.static_data,
+                        frame_params,
+                        &mut graphics_layer.graphics_command_list,
+                        &graphics_layer.backbuffer_rtv,
+                        &gpu_heap.gpu_data,
+                        &mut gpu_heap.state,
+                    )
+                }
             };
         }
 
