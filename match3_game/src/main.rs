@@ -105,7 +105,7 @@ fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
     }
 }
 
-enum UpdateGameStatus {
+enum GameStateTransitionState {
     Unchanged,
     TransitionToNewState(GameStateType),
     RemoveState,
@@ -116,7 +116,7 @@ fn update_pause_state(
     frame_params: &mut PauseStateFrameData,
     messages: &mut Vec<WindowMessages>,
     dt: f32,
-) -> UpdateGameStatus {
+) -> GameStateTransitionState {
     // fade in the screen state
     frame_params.fade_in_status = clamp(prev_frame_params.fade_in_status + dt, 0.0, 1.0);
 
@@ -126,7 +126,7 @@ fn update_pause_state(
                 // block all input from reaching game states below
                 messages.clear();
 
-                return UpdateGameStatus::RemoveState;
+                return GameStateTransitionState::RemoveState;
             }
 
             _ => {}
@@ -137,7 +137,7 @@ fn update_pause_state(
     messages.clear();
 
     // todo: add support for reading input and closing the state again
-    UpdateGameStatus::Unchanged
+    GameStateTransitionState::Unchanged
 }
 
 fn update_gameplay_state(
@@ -145,12 +145,11 @@ fn update_gameplay_state(
     frame_data: &mut GameplayStateFrameData,
     messages: &mut Vec<WindowMessages>,
     _dt: f32,
-) -> UpdateGameStatus {
-    
-	// copy the state of the previous state as starting point
+) -> GameStateTransitionState {
+    // copy the state of the previous state as starting point
     frame_data.grid = prev_frame_data.grid;
 
-	let rnd_row = 5;
+    let rnd_row = 5;
     let rnd_col = 4;
 
     for x in messages {
@@ -164,7 +163,7 @@ fn update_gameplay_state(
 
                 frame_data.grid[rnd_row][rnd_col] = true;
 
-                return UpdateGameStatus::TransitionToNewState(GameStateType::Pause);
+                return GameStateTransitionState::TransitionToNewState(GameStateType::Pause);
             }
 
             WindowMessages::MouseLeftButtonUp => {
@@ -189,7 +188,7 @@ fn update_gameplay_state(
     }
 
     // don't need to switch game states
-    UpdateGameStatus::Unchanged
+    GameStateTransitionState::Unchanged
 }
 
 fn draw_pause_state(
@@ -345,7 +344,8 @@ fn main() {
     let mut update_frame_number: u64 = 0;
 
     let mut game_state_stack: Vec<GameStateStaticData> = Vec::new();
-    let mut next_game_state = Some(GameStateType::Gameplay);
+    let mut next_game_state: GameStateTransitionState =
+        GameStateTransitionState::TransitionToNewState(GameStateType::Gameplay);
 
     while !should_game_close {
         let new_time = std::time::Instant::now();
@@ -378,7 +378,7 @@ fn main() {
 
         // we are starting a new frame, do we need to transition to a new state?
         match next_game_state {
-            Some(x) => {
+            GameStateTransitionState::TransitionToNewState(x) => {
                 match x {
                     GameStateType::Gameplay => {
                         game_state_stack
@@ -417,10 +417,21 @@ fn main() {
                 }
 
                 // make sure to reset the state
-                next_game_state = None;
+                next_game_state = GameStateTransitionState::Unchanged;
             }
 
-            None => {}
+            GameStateTransitionState::RemoveState => {
+                // remove the top most state from the stack
+                game_state_stack.pop();
+
+                frame_params0.gameplay_data.pop();
+                frame_params1.gameplay_data.pop();
+
+                // make sure to reset the state
+                next_game_state = GameStateTransitionState::Unchanged;
+            }
+
+            GameStateTransitionState::Unchanged => {}
         }
 
         let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
@@ -462,14 +473,18 @@ fn main() {
                 };
 
                 match state_status {
-                    UpdateGameStatus::Unchanged => {}
-                    UpdateGameStatus::TransitionToNewState(x) => {
-                        next_game_state = Some(x);
-                    }
-                    UpdateGameStatus::RemoveState => {
-                        // need to handle this case
-                    }
+                    GameStateTransitionState::Unchanged => {}
+                    _ => match next_game_state {
+                        GameStateTransitionState::Unchanged => {
+                            next_game_state = state_status;
+                        }
+                        _ => {
+                            panic!("logic error, only one state transition per frame is allowed");
+                        }
+                    },
                 }
+
+                // next_game_state = state_status;
             }
 
             update_frame_number += 1;
