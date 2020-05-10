@@ -526,21 +526,21 @@ fn main() {
 
             for state in game_state_stack.iter_mut().rev() {
                 let state_status = match state {
-                    GameStateData::Gameplay(x) => {
+                    GameStateData::Gameplay(game_state) => {
                         let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
-                            (&x.frame_data0, &mut x.frame_data1)
+                            (&game_state.frame_data0, &mut game_state.frame_data1)
                         } else {
-                            (&x.frame_data1, &mut x.frame_data0)
+                            (&game_state.frame_data1, &mut game_state.frame_data0)
                         };
 
                         update_gameplay_state(prev_frame_params, frame_params, &messages, dt)
                     }
 
-                    GameStateData::Pause(x) => {
+                    GameStateData::Pause(game_state) => {
                         let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
-                            (&x.frame_data0, &mut x.frame_data1)
+                            (&game_state.frame_data0, &mut game_state.frame_data1)
                         } else {
-                            (&x.frame_data1, &mut x.frame_data0)
+                            (&game_state.frame_data1, &mut game_state.frame_data0)
                         };
 
                         update_pause_state(prev_frame_params, frame_params, &messages, dt)
