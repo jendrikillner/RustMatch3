@@ -110,7 +110,7 @@ fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
 enum GameStateTransitionState {
     Unchanged,
     TransitionToNewState(GameStateType),
-    RemoveState,
+    ReturnToPreviousState,
 }
 
 fn update_pause_state(
@@ -128,7 +128,7 @@ fn update_pause_state(
                 // block all input from reaching game states below
                 messages.clear();
 
-                return GameStateTransitionState::RemoveState;
+                return GameStateTransitionState::ReturnToPreviousState;
             }
 
             _ => {}
@@ -180,6 +180,7 @@ fn update_gameplay_state(
 ) -> GameStateTransitionState {
     // copy the state of the previous state as starting point
     frame_data.grid = prev_frame_data.grid;
+    frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
 
     for x in messages {
         match x {
@@ -229,7 +230,7 @@ fn update_gameplay_state(
 
     if selected_fields == 10 {
         if count_selected_fields(&prev_frame_data.grid) != 10 {
-            return GameStateTransitionState::RemoveState;
+            return GameStateTransitionState::ReturnToPreviousState;
         }
     }
 
@@ -472,7 +473,7 @@ fn main() {
                 next_game_state = GameStateTransitionState::Unchanged;
             }
 
-            GameStateTransitionState::RemoveState => {
+            GameStateTransitionState::ReturnToPreviousState => {
                 // remove the top most state from the stack
                 game_state_stack.pop();
 
