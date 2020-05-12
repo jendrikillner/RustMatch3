@@ -211,6 +211,8 @@ impl Drop for GraphicsCommandList<'_> {
 
 pub struct RenderTargetView<'a> {
     pub native_view: &'a mut winapi::um::d3d11::ID3D11RenderTargetView,
+    width: i32,
+    height: i32,
 }
 
 impl Drop for RenderTargetView<'_> {
@@ -443,6 +445,15 @@ pub fn create_device_graphics_layer<'a>(
 
         set_debug_name(command_context.as_ref().unwrap(), "Deferred Context");
 
+        let mut rect = winapi::shared::windef::RECT {
+            bottom: 0,
+            left: 0,
+            right: 0,
+            top: 0,
+        };
+
+        winapi::um::winuser::GetClientRect(hwnd, &mut rect);
+
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
                 native: d3d11_device.as_mut().unwrap(),
@@ -453,6 +464,8 @@ pub fn create_device_graphics_layer<'a>(
             backbuffer_texture,
             backbuffer_rtv: RenderTargetView {
                 native_view: backbuffer_rtv.as_mut().unwrap(),
+                width: rect.right,
+                height: rect.bottom,
             },
             graphics_command_list: GraphicsCommandList {
                 command_context: command_context1,
@@ -465,17 +478,20 @@ pub fn create_device_graphics_layer<'a>(
 #[derive(Debug)]
 pub struct PipelineStateObjectDesc<'a> {
     pub shader_name: &'a str,
+    pub premultiplied_alpha: bool,
 }
 
 pub struct PipelineStateObject<'a> {
     pub vertex_shader: &'a ID3D11VertexShader,
     pub pixel_shader: &'a ID3D11PixelShader,
+    pub blend_state: &'a ID3D11BlendState,
 }
 
 impl Drop for PipelineStateObject<'_> {
     fn drop(&mut self) {
         leak_check_release(self.vertex_shader, 0, None);
         leak_check_release(self.pixel_shader, 0, None);
+        leak_check_release(self.blend_state, 0, None);
     }
 }
 
@@ -489,6 +505,7 @@ pub fn create_pso<'a>(
 
     let mut vertex_shader: *mut ID3D11VertexShader = std::ptr::null_mut();
     let mut pixel_shader: *mut ID3D11PixelShader = std::ptr::null_mut();
+    let mut blend_state: *mut ID3D11BlendState = std::ptr::null_mut();
 
     // load a shader
     let vertex_shader_memory = std::fs::read(&vertex_shader_name).unwrap();
@@ -530,13 +547,40 @@ pub fn create_pso<'a>(
         );
     }
 
+    let rt0_blend_desc = D3D11_RENDER_TARGET_BLEND_DESC {
+        BlendEnable: if desc.premultiplied_alpha { 1 } else { 0 },
+        SrcBlend: D3D11_BLEND_SRC_ALPHA,
+        DestBlend: D3D11_BLEND_INV_SRC_ALPHA,
+        BlendOp: D3D11_BLEND_OP_ADD,
+        SrcBlendAlpha: D3D11_BLEND_INV_DEST_ALPHA,
+        DestBlendAlpha: D3D11_BLEND_ONE,
+        BlendOpAlpha: D3D11_BLEND_OP_ADD,
+        RenderTargetWriteMask: D3D11_COLOR_WRITE_ENABLE_ALL as u8,
+    };
+
+    // setup the blend description
+    let blend_desc = D3D11_BLEND_DESC {
+        AlphaToCoverageEnable: 0,
+        IndependentBlendEnable: 0, // always use RT0 settings for all targets
+        RenderTarget: [rt0_blend_desc; 8],
+    };
+
+    let error: HRESULT = unsafe {
+        device
+            .native
+            .CreateBlendState(&blend_desc, &mut blend_state)
+    };
+
+    assert!(error == winapi::shared::winerror::S_OK);
+
     PipelineStateObject {
         vertex_shader: unsafe { vertex_shader.as_mut().unwrap() },
         pixel_shader: unsafe { pixel_shader.as_mut().unwrap() },
+        blend_state: unsafe { blend_state.as_mut().unwrap() },
     }
 }
 
-pub fn begin_render_pass(
+fn clear_render_target(
     command_list: &mut GraphicsCommandList,
     clear_color: [f32; 4],
     rtv: &RenderTargetView,
@@ -548,10 +592,16 @@ pub fn begin_render_pass(
             rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
 
         command_context.ClearRenderTargetView(rtv_mut, &clear_color);
+    }
+}
+
+pub fn begin_render_pass(command_list: &mut GraphicsCommandList, rtv: &RenderTargetView) {
+    unsafe {
+        let command_context = command_list.command_context.as_ref().unwrap();
 
         let viewport: D3D11_VIEWPORT = D3D11_VIEWPORT {
-            Height: 400.0,
-            Width: 400.0,
+            Height: rtv.height as f32,
+            Width: rtv.width as f32,
             MinDepth: 0.0,
             MaxDepth: 1.0,
             TopLeftX: 0.0,
@@ -561,10 +611,22 @@ pub fn begin_render_pass(
         // set viewport for the output window
         command_context.RSSetViewports(1, &viewport);
 
+        let rtv_mut: *mut ID3D11RenderTargetView =
+            rtv.native_view as *const ID3D11RenderTargetView as u64 as *mut ID3D11RenderTargetView;
+
         // bind backbuffer as render target
         let rtvs: [*mut winapi::um::d3d11::ID3D11RenderTargetView; 1] = [rtv_mut];
         command_context.OMSetRenderTargets(1, rtvs.as_ptr(), std::ptr::null_mut());
     }
+}
+
+pub fn begin_render_pass_and_clear(
+    command_list: &mut GraphicsCommandList,
+    clear_color: [f32; 4],
+    rtv: &RenderTargetView,
+) {
+    begin_render_pass(command_list, rtv);
+    clear_render_target(command_list, clear_color, rtv);
 }
 
 pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObject) {
@@ -580,6 +642,8 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
             (pso.vertex_shader as *const ID3D11VertexShader as u64) as *mut ID3D11VertexShader;
         let pixel_shader_mut: *mut ID3D11PixelShader =
             (pso.pixel_shader as *const ID3D11PixelShader as u64) as *mut ID3D11PixelShader;
+        let blend_state_mut: *mut ID3D11BlendState =
+            (pso.blend_state as *const ID3D11BlendState as u64) as *mut ID3D11BlendState;
 
         // bind the shaders
         command_context.VSSetShader(vertex_shader_mut, std::ptr::null_mut(), 0);
@@ -587,6 +651,9 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
 
         // fow now assume all PSO will be using this state
         command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+        // and set the correct blending states
+        command_context.OMSetBlendState(blend_state_mut, &[0.0; 4], 0xffffffff);
     }
 }
 

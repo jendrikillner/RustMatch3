@@ -1,6 +1,6 @@
 cbuffer ScreenSpaceQuadData : register(b0)
 {
-	float3 color;
+	float4 color;
 	float2 scale;
 	float2 position;
 };
@@ -27,7 +27,7 @@ VertexToPixelShader VS_main(uint vertex_id: SV_VertexID)
     return output;
 }
 
-float3 PS_main(VertexToPixelShader input) : SV_TARGET
+float4 PS_main(VertexToPixelShader input) : SV_TARGET
 {
 	return color;
 }

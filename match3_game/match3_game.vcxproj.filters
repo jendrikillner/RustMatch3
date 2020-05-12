@@ -22,5 +22,13 @@
     <Filter Include="os_window">
       <UniqueIdentifier>{c4710786-0d27-4da1-aad0-0d4693147e85}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{5a044dbe-4604-4a4f-8606-f76d4d75a47f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src_data\shaders\screen_space_quad.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

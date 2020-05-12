@@ -149,7 +149,7 @@ unsafe extern "system" fn window_proc(
     DefWindowProcW(h_wnd, msg, w_param, l_param)
 }
 
-pub fn create_window() -> Result<Window, ()> {
+pub fn create_window(size_x: i32, size_y: i32) -> Result<Window, ()> {
     let (channel_sender, channel_receiver) = std::sync::mpsc::channel();
 
     std::thread::spawn(move || {
@@ -181,6 +181,21 @@ pub fn create_window() -> Result<Window, ()> {
 
             assert!(error_code != 0, "failed to register the window class");
 
+            let mut window_rect = winapi::shared::windef::RECT {
+                bottom: size_y,
+                left: 0,
+                right: size_x,
+                top: 0,
+            };
+
+            // calculate the required size of the window
+            AdjustWindowRectEx(
+                &mut window_rect,
+                WS_OVERLAPPEDWINDOW | WS_MINIMIZEBOX | WS_SYSMENU,
+                0,
+                0,
+            );
+
             let h_wnd_window = CreateWindowExW(
                 0,
                 window_class_name.as_ptr(),
@@ -188,8 +203,8 @@ pub fn create_window() -> Result<Window, ()> {
                 WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
                 0,
                 0,
-                400,
-                400,
+                window_rect.right - window_rect.left,
+                window_rect.bottom - window_rect.top,
                 0 as HWND,
                 0 as HMENU,
                 0 as HINSTANCE,
