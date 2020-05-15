@@ -1,5 +1,11 @@
+use crate::pause::draw_pause_state;
+use crate::pause::update_pause_state;
+use crate::pause::PauseState;
 use graphics_device::*;
 use os_window::*;
+
+// this will cause pause.rs be included into this compilation unit
+mod pause;
 
 pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
     (dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000.0) as f32
@@ -74,35 +80,11 @@ impl GameplayStateStaticData<'_> {
     }
 }
 
-struct PauseStateStaticData<'a> {
-    screen_space_quad_blended_pso: PipelineStateObject<'a>,
-}
-
-impl PauseStateStaticData<'_> {
-    fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseStateStaticData<'a> {
-        let screen_space_quad_blended_pso: PipelineStateObject = create_pso(
-            &device_layer.device,
-            PipelineStateObjectDesc {
-                shader_name: "target_data/shaders/screen_space_quad",
-                premultiplied_alpha: true,
-            },
-        );
-
-        PauseStateStaticData {
-            screen_space_quad_blended_pso,
-        }
-    }
-}
-
 struct GameplayStateFrameData {
     // the state of the grid
     grid: [[bool; 5]; 6],
 
     rnd_state: Xoroshiro128Rng,
-}
-
-struct PauseStateFrameData {
-    fade_in_status: f32,
 }
 
 struct GameplayState<'a> {
@@ -128,30 +110,6 @@ impl GameplayState<'_> {
             static_data: GameplayStateStaticData::new(device_layer),
             frame_data0: GameplayStateFrameData::new(),
             frame_data1: GameplayStateFrameData::new(),
-        }
-    }
-}
-
-impl PauseStateFrameData {
-    fn new<'a>() -> PauseStateFrameData {
-        PauseStateFrameData {
-            fade_in_status: 0.0,
-        }
-    }
-}
-
-struct PauseState<'a> {
-    static_data: PauseStateStaticData<'a>,
-    frame_data0: PauseStateFrameData,
-    frame_data1: PauseStateFrameData,
-}
-
-impl PauseState<'_> {
-    fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseState<'a> {
-        PauseState {
-            static_data: PauseStateStaticData::new(&device_layer),
-            frame_data0: PauseStateFrameData::new(),
-            frame_data1: PauseStateFrameData::new(),
         }
     }
 }
@@ -183,7 +141,7 @@ fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
     }
 }
 
-struct UpdateBehaviourDesc {
+pub struct UpdateBehaviourDesc {
     // tells the system if a state trasition is required
     transition_state: GameStateTransitionState,
 
@@ -196,34 +154,6 @@ enum GameStateTransitionState {
     Unchanged,
     TransitionToNewState(GameStateType),
     ReturnToPreviousState,
-}
-
-fn update_pause_state(
-    prev_frame_params: &PauseStateFrameData,
-    frame_params: &mut PauseStateFrameData,
-    messages: &Vec<WindowMessages>,
-    dt: f32,
-) -> UpdateBehaviourDesc {
-    // fade in the screen state
-    frame_params.fade_in_status = clamp(prev_frame_params.fade_in_status + dt, 0.0, 1.0);
-
-    for x in messages.iter() {
-        match x {
-            WindowMessages::MouseLeftButtonDown => {
-                return UpdateBehaviourDesc {
-                    transition_state: GameStateTransitionState::ReturnToPreviousState,
-                    block_input: true,
-                }
-            }
-
-            _ => {}
-        }
-    }
-
-    UpdateBehaviourDesc {
-        transition_state: GameStateTransitionState::Unchanged,
-        block_input: true,
-    }
 }
 
 pub struct Xoroshiro128Rng {
@@ -331,41 +261,6 @@ fn update_gameplay_state(
         transition_state: GameStateTransitionState::Unchanged,
         block_input: false,
     }
-}
-
-fn draw_pause_state(
-    static_state_data: &PauseStateStaticData,
-    frame_params: &PauseStateFrameData,
-    command_list: &mut GraphicsCommandList,
-    backbuffer_rtv: &RenderTargetView,
-    gpu_heap_data: &MappedGpuData,
-    gpu_heap_state: &mut LinearAllocatorState,
-) {
-    begin_render_pass(command_list, backbuffer_rtv);
-
-    bind_pso(
-        command_list,
-        &static_state_data.screen_space_quad_blended_pso,
-    );
-
-    let obj_alloc = HeapAlloc::new(
-        ScreenSpaceQuadData {
-            color: Float4 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                a: frame_params.fade_in_status * 0.8,
-            },
-            scale: Float2 { x: 1.0, y: 1.0 },
-            position: Float2 { x: 0.0, y: 0.0 },
-        },
-        gpu_heap_data,
-        gpu_heap_state,
-    );
-
-    bind_constant(command_list, 0, &obj_alloc);
-
-    draw_vertices(command_list, 4);
 }
 
 fn draw_gameplay_state(
