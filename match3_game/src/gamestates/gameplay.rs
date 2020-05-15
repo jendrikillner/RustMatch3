@@ -152,8 +152,8 @@ pub fn update_gameplay_state(
     if selected_fields == 5 {
         if count_selected_fields(&prev_frame_data.grid) != 5 {
             return UpdateBehaviourDesc {
-                transition_state: super::GameStateTransitionState::TransitionToNewState(
-                    super::GameStateType::Pause,
+                transition_state: super::super::GameStateTransitionState::TransitionToNewState(
+                    super::super::GameStateType::Pause,
                 ),
                 block_input: false,
             };
@@ -163,7 +163,7 @@ pub fn update_gameplay_state(
     if selected_fields == 10 {
         if count_selected_fields(&prev_frame_data.grid) != 10 {
             return UpdateBehaviourDesc {
-                transition_state: super::GameStateTransitionState::ReturnToPreviousState,
+                transition_state: super::super::GameStateTransitionState::ReturnToPreviousState,
                 block_input: false,
             };
         }
@@ -171,7 +171,7 @@ pub fn update_gameplay_state(
 
     // don't need to switch game states
     UpdateBehaviourDesc {
-        transition_state: super::GameStateTransitionState::Unchanged,
+        transition_state: super::super::GameStateTransitionState::Unchanged,
         block_input: false,
     }
 }
@@ -181,7 +181,7 @@ pub fn draw_gameplay_state(
     frame_params: &GameplayStateFrameData,
     command_list: &mut GraphicsCommandList,
     backbuffer_rtv: &RenderTargetView,
-    gpu_heap_data: &super::MappedGpuData,
+    gpu_heap_data: &super::super::MappedGpuData,
     gpu_heap_state: &mut LinearAllocatorState,
 ) {
     let color: [f32; 4] = [0.0, 0.2, 0.4, 1.0];
@@ -196,7 +196,7 @@ pub fn draw_gameplay_state(
             let y_offset_in_pixels = (y as f32) * 180.0;
 
             // allocate the constants for this draw call
-            let obj_alloc = super::HeapAlloc::new(
+            let obj_alloc = super::super::HeapAlloc::new(
                 ScreenSpaceQuadData {
                     color: if !column {
                         Float4 {

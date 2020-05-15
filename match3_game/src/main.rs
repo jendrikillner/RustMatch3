@@ -1,15 +1,14 @@
-use crate::gameplay::draw_gameplay_state;
-use crate::gameplay::update_gameplay_state;
-use crate::gameplay::GameplayState;
-use crate::pause::draw_pause_state;
-use crate::pause::update_pause_state;
-use crate::pause::PauseState;
+use crate::gamestates::gameplay::draw_gameplay_state;
+use crate::gamestates::gameplay::update_gameplay_state;
+use crate::gamestates::gameplay::GameplayState;
+use crate::gamestates::pause::draw_pause_state;
+use crate::gamestates::pause::update_pause_state;
+use crate::gamestates::pause::PauseState;
 use graphics_device::*;
 use os_window::*;
 
 // this will cause pause.rs be included into this compilation unit
-mod gameplay;
-mod pause;
+mod gamestates;
 
 pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
     (dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000.0) as f32

@@ -78,7 +78,7 @@ pub fn update_pause_state(
         match x {
             WindowMessages::MouseLeftButtonDown => {
                 return UpdateBehaviourDesc {
-                    transition_state: super::GameStateTransitionState::ReturnToPreviousState,
+                    transition_state: super::super::GameStateTransitionState::ReturnToPreviousState,
                     block_input: true,
                 }
             }
@@ -88,7 +88,7 @@ pub fn update_pause_state(
     }
 
     UpdateBehaviourDesc {
-        transition_state: super::GameStateTransitionState::Unchanged,
+        transition_state: super::super::GameStateTransitionState::Unchanged,
         block_input: true,
     }
 }
@@ -108,7 +108,7 @@ pub fn draw_pause_state(
         &static_state_data.screen_space_quad_blended_pso,
     );
 
-    let obj_alloc = super::HeapAlloc::new(
+    let obj_alloc = super::super::HeapAlloc::new(
         ScreenSpaceQuadData {
             color: Float4 {
                 x: 0.0,
