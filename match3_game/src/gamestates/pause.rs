@@ -2,7 +2,7 @@ use crate::clamp;
 use crate::Float2;
 use crate::Float4;
 use crate::ScreenSpaceQuadData;
-use crate::UpdateBehaviourDesc;
+use super::UpdateBehaviourDesc;
 use graphics_device::begin_render_pass;
 use graphics_device::bind_constant;
 use graphics_device::bind_pso;
@@ -78,7 +78,7 @@ pub fn update_pause_state(
         match x {
             WindowMessages::MouseLeftButtonDown => {
                 return UpdateBehaviourDesc {
-                    transition_state: super::super::GameStateTransitionState::ReturnToPreviousState,
+                    transition_state: super::GameStateTransitionState::ReturnToPreviousState,
                     block_input: true,
                 }
             }
@@ -88,7 +88,7 @@ pub fn update_pause_state(
     }
 
     UpdateBehaviourDesc {
-        transition_state: super::super::GameStateTransitionState::Unchanged,
+        transition_state: super::GameStateTransitionState::Unchanged,
         block_input: true,
     }
 }

@@ -4,6 +4,9 @@ use crate::gamestates::gameplay::GameplayState;
 use crate::gamestates::pause::draw_pause_state;
 use crate::gamestates::pause::update_pause_state;
 use crate::gamestates::pause::PauseState;
+use crate::gamestates::GameStateData;
+use crate::gamestates::GameStateTransitionState;
+use crate::gamestates::GameStateType;
 use graphics_device::*;
 use os_window::*;
 
@@ -61,19 +64,6 @@ fn parse_cmdline() -> CommandLineArgs {
     }
 }
 
-///  -------------------- gameplay ---------------------
-
-pub enum GameStateType {
-    //MainMenu,
-    Pause,
-    Gameplay,
-}
-
-enum GameStateData<'a> {
-    Gameplay(GameplayState<'a>),
-    Pause(PauseState<'a>),
-}
-
 // data for each displayed frame
 // frame = "A piece of data that is processed and ultimately displayed on screen"
 struct FrameParams {
@@ -88,21 +78,6 @@ fn clamp<T: std::cmp::PartialOrd>(x: T, min: T, max: T) -> T {
     } else {
         x
     }
-}
-
-pub struct UpdateBehaviourDesc {
-    // tells the system if a state trasition is required
-    transition_state: GameStateTransitionState,
-
-    // this allows a state to block all input from reaching lower level frames
-    // could be extended so that only certain input values are blocked
-    block_input: bool,
-}
-
-enum GameStateTransitionState {
-    Unchanged,
-    TransitionToNewState(GameStateType),
-    ReturnToPreviousState,
 }
 
 fn main() {

@@ -1,7 +1,7 @@
 use crate::Float2;
 use crate::Float4;
 use crate::ScreenSpaceQuadData;
-use crate::UpdateBehaviourDesc;
+use super::UpdateBehaviourDesc;
 use graphics_device::begin_render_pass_and_clear;
 use graphics_device::bind_constant;
 use graphics_device::bind_pso;
@@ -152,8 +152,8 @@ pub fn update_gameplay_state(
     if selected_fields == 5 {
         if count_selected_fields(&prev_frame_data.grid) != 5 {
             return UpdateBehaviourDesc {
-                transition_state: super::super::GameStateTransitionState::TransitionToNewState(
-                    super::super::GameStateType::Pause,
+                transition_state: super::GameStateTransitionState::TransitionToNewState(
+                    super::GameStateType::Pause,
                 ),
                 block_input: false,
             };
@@ -163,7 +163,7 @@ pub fn update_gameplay_state(
     if selected_fields == 10 {
         if count_selected_fields(&prev_frame_data.grid) != 10 {
             return UpdateBehaviourDesc {
-                transition_state: super::super::GameStateTransitionState::ReturnToPreviousState,
+                transition_state: super::GameStateTransitionState::ReturnToPreviousState,
                 block_input: false,
             };
         }
@@ -171,7 +171,7 @@ pub fn update_gameplay_state(
 
     // don't need to switch game states
     UpdateBehaviourDesc {
-        transition_state: super::super::GameStateTransitionState::Unchanged,
+        transition_state: super::GameStateTransitionState::Unchanged,
         block_input: false,
     }
 }
