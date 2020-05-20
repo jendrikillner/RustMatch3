@@ -1,3 +1,6 @@
+pub mod gameplay;
+pub mod pause;
+
 use crate::gamestates::gameplay::draw_gameplay_state;
 use crate::gamestates::gameplay::{update_gameplay_state, GameplayState};
 use crate::gamestates::pause::draw_pause_state;
@@ -17,9 +20,6 @@ pub struct UpdateBehaviourDesc {
     // could be extended so that only certain input values are blocked
     pub block_input: bool,
 }
-
-pub mod gameplay;
-pub mod pause;
 
 pub enum GameStateType {
     //MainMenu,

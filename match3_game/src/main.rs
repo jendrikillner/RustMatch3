@@ -1,11 +1,10 @@
-use crate::gamestates::{
-    draw_gamestate_stack, execute_possible_state_transition, update_gamestate_stack, GameStateData,
-    GameStateTransitionState, GameStateType,
-};
+// these make sure we compile the modules
+mod gamestates;
+
+// and the modules we use
+use gamestates::*;
 use graphics_device::*;
 use os_window::*;
-
-mod gamestates;
 
 pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
     (dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000.0) as f32

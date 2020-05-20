@@ -1,22 +1,8 @@
-use super::super::HeapAlloc;
-use super::GameStateTransitionState;
-use super::UpdateBehaviourDesc;
-use crate::clamp;
-use crate::Float2;
-use crate::Float4;
-use crate::ScreenSpaceQuadData;
-use graphics_device::begin_render_pass;
-use graphics_device::bind_constant;
-use graphics_device::bind_pso;
-use graphics_device::create_pso;
-use graphics_device::draw_vertices;
-use graphics_device::GraphicsCommandList;
-use graphics_device::GraphicsDeviceLayer;
-use graphics_device::LinearAllocatorState;
-use graphics_device::MappedGpuData;
-use graphics_device::PipelineStateObject;
-use graphics_device::PipelineStateObjectDesc;
-use graphics_device::RenderTargetView;
+use crate::{
+    clamp, Float2, Float4, GameStateTransitionState, HeapAlloc, ScreenSpaceQuadData,
+    UpdateBehaviourDesc,
+};
+use graphics_device::*;
 use os_window::WindowMessages;
 
 pub struct PauseStateStaticData<'a> {
