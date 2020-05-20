@@ -1,5 +1,5 @@
-use super::{GameStateTransitionState,GameStateType,UpdateBehaviourDesc};
-use crate::{Float2, Float4, ScreenSpaceQuadData, HeapAlloc};
+use super::{GameStateTransitionState, GameStateType, UpdateBehaviourDesc};
+use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
 
 use graphics_device::*;
 use os_window::WindowMessages;

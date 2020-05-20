@@ -1,6 +1,8 @@
-use crate::gamestates::gameplay::{draw_gameplay_state,update_gameplay_state,GameplayState};
-use crate::gamestates::pause::{draw_pause_state,update_pause_state,PauseState};
-use crate::gamestates::{GameStateData,GameStateTransitionState,GameStateType};
+use crate::gamestates::gameplay::{draw_gameplay_state, update_gameplay_state};
+use crate::gamestates::pause::{draw_pause_state, update_pause_state};
+use crate::gamestates::{
+    execute_possible_state_transition, GameStateData, GameStateTransitionState, GameStateType,
+};
 use graphics_device::*;
 use os_window::*;
 
@@ -138,40 +140,11 @@ fn main() {
 
         accumulator = dt;
 
-        // we are starting a new frame, do we need to transition to a new state?
-        match next_game_state {
-            GameStateTransitionState::TransitionToNewState(x) => {
-                match x {
-                    GameStateType::Gameplay => {
-                        game_state_stack
-                            .push(GameStateData::Gameplay(GameplayState::new(&graphics_layer)));
-                    }
+        execute_possible_state_transition(next_game_state, &mut game_state_stack, &graphics_layer);
+        next_game_state = GameStateTransitionState::Unchanged;
 
-                    GameStateType::Pause => {
-                        game_state_stack
-                            .push(GameStateData::Pause(PauseState::new(&graphics_layer)));
-                    }
-                }
-
-                // make sure to reset the state
-                next_game_state = GameStateTransitionState::Unchanged;
-            }
-
-            GameStateTransitionState::ReturnToPreviousState => {
-                // remove the top most state from the stack
-                game_state_stack.pop();
-
-                // close the game once all game states have been deleted
-                if game_state_stack.len() == 0 {
-                    should_game_close = true;
-                    continue;
-                }
-
-                // make sure to reset the state
-                next_game_state = GameStateTransitionState::Unchanged;
-            }
-
-            GameStateTransitionState::Unchanged => {}
+        if game_state_stack.is_empty() {
+            should_game_close = true;
         }
 
         let (_prev_engine_frame_params, engine_frame_params) = if update_frame_number % 2 == 0 {
