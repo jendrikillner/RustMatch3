@@ -2,6 +2,10 @@ use crate::Float2;
 use crate::Float4;
 use crate::ScreenSpaceQuadData;
 use super::UpdateBehaviourDesc;
+use super::GameStateTransitionState;
+use super::GameStateType;
+use super::super::HeapAlloc;
+
 use graphics_device::begin_render_pass_and_clear;
 use graphics_device::bind_constant;
 use graphics_device::bind_pso;
@@ -152,8 +156,8 @@ pub fn update_gameplay_state(
     if selected_fields == 5 {
         if count_selected_fields(&prev_frame_data.grid) != 5 {
             return UpdateBehaviourDesc {
-                transition_state: super::GameStateTransitionState::TransitionToNewState(
-                    super::GameStateType::Pause,
+                transition_state: GameStateTransitionState::TransitionToNewState(
+                    GameStateType::Pause,
                 ),
                 block_input: false,
             };
@@ -163,7 +167,7 @@ pub fn update_gameplay_state(
     if selected_fields == 10 {
         if count_selected_fields(&prev_frame_data.grid) != 10 {
             return UpdateBehaviourDesc {
-                transition_state: super::GameStateTransitionState::ReturnToPreviousState,
+                transition_state: GameStateTransitionState::ReturnToPreviousState,
                 block_input: false,
             };
         }
@@ -171,7 +175,7 @@ pub fn update_gameplay_state(
 
     // don't need to switch game states
     UpdateBehaviourDesc {
-        transition_state: super::GameStateTransitionState::Unchanged,
+        transition_state: GameStateTransitionState::Unchanged,
         block_input: false,
     }
 }
@@ -196,7 +200,7 @@ pub fn draw_gameplay_state(
             let y_offset_in_pixels = (y as f32) * 180.0;
 
             // allocate the constants for this draw call
-            let obj_alloc = super::super::HeapAlloc::new(
+            let obj_alloc = HeapAlloc::new(
                 ScreenSpaceQuadData {
                     color: if !column {
                         Float4 {

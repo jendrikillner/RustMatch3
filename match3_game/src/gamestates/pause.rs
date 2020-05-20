@@ -3,6 +3,8 @@ use crate::Float2;
 use crate::Float4;
 use crate::ScreenSpaceQuadData;
 use super::UpdateBehaviourDesc;
+use super::GameStateTransitionState;
+use super::super::HeapAlloc;
 use graphics_device::begin_render_pass;
 use graphics_device::bind_constant;
 use graphics_device::bind_pso;
@@ -78,7 +80,7 @@ pub fn update_pause_state(
         match x {
             WindowMessages::MouseLeftButtonDown => {
                 return UpdateBehaviourDesc {
-                    transition_state: super::GameStateTransitionState::ReturnToPreviousState,
+                    transition_state: GameStateTransitionState::ReturnToPreviousState,
                     block_input: true,
                 }
             }
@@ -88,7 +90,7 @@ pub fn update_pause_state(
     }
 
     UpdateBehaviourDesc {
-        transition_state: super::GameStateTransitionState::Unchanged,
+        transition_state: GameStateTransitionState::Unchanged,
         block_input: true,
     }
 }
@@ -108,7 +110,7 @@ pub fn draw_pause_state(
         &static_state_data.screen_space_quad_blended_pso,
     );
 
-    let obj_alloc = super::super::HeapAlloc::new(
+    let obj_alloc = HeapAlloc::new(
         ScreenSpaceQuadData {
             color: Float4 {
                 x: 0.0,
