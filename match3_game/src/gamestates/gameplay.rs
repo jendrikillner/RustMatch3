@@ -1,22 +1,7 @@
-use super::super::HeapAlloc;
-use super::GameStateTransitionState;
-use super::GameStateType;
-use super::UpdateBehaviourDesc;
-use crate::Float2;
-use crate::Float4;
-use crate::ScreenSpaceQuadData;
+use super::{GameStateTransitionState,GameStateType,UpdateBehaviourDesc};
+use crate::{Float2, Float4, ScreenSpaceQuadData, HeapAlloc};
 
-use graphics_device::begin_render_pass_and_clear;
-use graphics_device::bind_constant;
-use graphics_device::bind_pso;
-use graphics_device::create_pso;
-use graphics_device::draw_vertices;
-use graphics_device::GraphicsCommandList;
-use graphics_device::GraphicsDeviceLayer;
-use graphics_device::LinearAllocatorState;
-use graphics_device::PipelineStateObject;
-use graphics_device::PipelineStateObjectDesc;
-use graphics_device::RenderTargetView;
+use graphics_device::*;
 use os_window::WindowMessages;
 
 pub struct GameplayStateStaticData<'a> {
