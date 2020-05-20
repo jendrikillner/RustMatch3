@@ -1,7 +1,8 @@
-use crate::gamestates::gameplay::{draw_gameplay_state, update_gameplay_state};
-use crate::gamestates::pause::{draw_pause_state, update_pause_state};
+use crate::gamestates::gameplay::draw_gameplay_state;
+use crate::gamestates::pause::draw_pause_state;
 use crate::gamestates::{
-    execute_possible_state_transition, GameStateData, GameStateTransitionState, GameStateType,
+    execute_possible_state_transition, update_gamestate_stack, GameStateData,
+    GameStateTransitionState, GameStateType,
 };
 use graphics_device::*;
 use os_window::*;
@@ -171,45 +172,12 @@ fn main() {
                 }
             }
 
-            for state in game_state_stack.iter_mut().rev() {
-                let state_status = match state {
-                    GameStateData::Gameplay(game_state) => {
-                        let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
-                            (&game_state.frame_data0, &mut game_state.frame_data1)
-                        } else {
-                            (&game_state.frame_data1, &mut game_state.frame_data0)
-                        };
-
-                        update_gameplay_state(prev_frame_params, frame_params, &messages, dt)
-                    }
-
-                    GameStateData::Pause(game_state) => {
-                        let (prev_frame_params, frame_params) = if update_frame_number % 2 == 0 {
-                            (&game_state.frame_data0, &mut game_state.frame_data1)
-                        } else {
-                            (&game_state.frame_data1, &mut game_state.frame_data0)
-                        };
-
-                        update_pause_state(prev_frame_params, frame_params, &messages, dt)
-                    }
-                };
-
-                if state_status.block_input {
-                    messages.clear();
-                }
-
-                match state_status.transition_state {
-                    GameStateTransitionState::Unchanged => {}
-                    _ => match next_game_state {
-                        GameStateTransitionState::Unchanged => {
-                            next_game_state = state_status.transition_state;
-                        }
-                        _ => {
-                            panic!("logic error, only one state transition per frame is allowed");
-                        }
-                    },
-                }
-            }
+            next_game_state = update_gamestate_stack(
+                dt,
+                update_frame_number,
+                &mut game_state_stack,
+                &mut messages,
+            );
 
             update_frame_number += 1;
         }
