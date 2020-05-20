@@ -1,7 +1,5 @@
-use crate::gamestates::gameplay::draw_gameplay_state;
-use crate::gamestates::pause::draw_pause_state;
 use crate::gamestates::{
-    execute_possible_state_transition, update_gamestate_stack, GameStateData,
+    draw_gamestate_stack, execute_possible_state_transition, update_gamestate_stack, GameStateData,
     GameStateTransitionState, GameStateType,
 };
 use graphics_device::*;
@@ -191,43 +189,14 @@ fn main() {
             state: LinearAllocatorState { used_bytes: 0 },
         };
 
-        for state in game_state_stack.iter_mut() {
-            match state {
-                GameStateData::Gameplay(game_state) => {
-                    let frame_params = if update_frame_number % 2 == 0 {
-                        &game_state.frame_data1
-                    } else {
-                        &game_state.frame_data0
-                    };
-
-                    draw_gameplay_state(
-                        &game_state.static_data,
-                        frame_params,
-                        &mut graphics_layer.graphics_command_list,
-                        &graphics_layer.backbuffer_rtv,
-                        &gpu_heap.gpu_data,
-                        &mut gpu_heap.state,
-                    );
-                }
-
-                GameStateData::Pause(x) => {
-                    let frame_params = if update_frame_number % 2 == 0 {
-                        &x.frame_data1
-                    } else {
-                        &x.frame_data0
-                    };
-
-                    draw_pause_state(
-                        &x.static_data,
-                        frame_params,
-                        &mut graphics_layer.graphics_command_list,
-                        &graphics_layer.backbuffer_rtv,
-                        &gpu_heap.gpu_data,
-                        &mut gpu_heap.state,
-                    )
-                }
-            };
-        }
+        draw_gamestate_stack(
+            &mut game_state_stack,
+            update_frame_number,
+            &mut graphics_layer.graphics_command_list,
+            &graphics_layer.backbuffer_rtv,
+            &gpu_heap.gpu_data,
+            &mut gpu_heap.state,
+        );
 
         // unmap the gpu buffer
         // from this point onwards we are unable to allocate further memory
