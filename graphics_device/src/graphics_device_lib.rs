@@ -653,7 +653,7 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
         command_context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
         // and set the correct blending states
-        command_context.OMSetBlendState(blend_state_mut, &[0.0; 4], 0xffffffff);
+        command_context.OMSetBlendState(blend_state_mut, &[0.0; 4], 0xffff_ffff);
     }
 }
 
