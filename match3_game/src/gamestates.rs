@@ -1,5 +1,5 @@
-pub mod gameplay;
-pub mod pause;
+mod gameplay;
+mod pause;
 
 use crate::gamestates::gameplay::draw_gameplay_state;
 use crate::gamestates::gameplay::{update_gameplay_state, GameplayState};
