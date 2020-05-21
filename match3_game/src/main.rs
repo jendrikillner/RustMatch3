@@ -189,7 +189,7 @@ fn main() {
         };
 
         draw_gamestate_stack(
-            &mut game_state_stack,
+            &game_state_stack,
             update_frame_number,
             &mut graphics_layer.graphics_command_list,
             &graphics_layer.backbuffer_rtv,

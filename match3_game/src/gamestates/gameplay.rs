@@ -38,11 +38,11 @@ pub struct GameplayState<'a> {
 }
 
 impl GameplayStateFrameData {
-    pub fn new<'a>() -> GameplayStateFrameData {
+    pub fn new() -> GameplayStateFrameData {
         GameplayStateFrameData {
             grid: { [[false; 5]; 6] },
             rnd_state: Xoroshiro128Rng {
-                state: [23480923840238, 459],
+                state: [23_480_923_840_238, 459],
             },
         }
     }
@@ -91,7 +91,7 @@ fn count_selected_fields(grid: &[[bool; 5]; 6]) -> i32 {
 pub fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
-    messages: &Vec<WindowMessages>,
+    messages: &[WindowMessages],
     _dt: f32,
 ) -> UpdateBehaviourDesc {
     // copy the state of the previous state as starting point
@@ -138,24 +138,18 @@ pub fn update_gameplay_state(
     // and close the game after 10
     let selected_fields = count_selected_fields(&frame_data.grid);
 
-    if selected_fields == 5 {
-        if count_selected_fields(&prev_frame_data.grid) != 5 {
-            return UpdateBehaviourDesc {
-                transition_state: GameStateTransitionState::TransitionToNewState(
-                    GameStateType::Pause,
-                ),
-                block_input: false,
-            };
-        }
+    if selected_fields == 5 && count_selected_fields(&prev_frame_data.grid) != 5 {
+        return UpdateBehaviourDesc {
+            transition_state: GameStateTransitionState::TransitionToNewState(GameStateType::Pause),
+            block_input: false,
+        };
     }
 
-    if selected_fields == 10 {
-        if count_selected_fields(&prev_frame_data.grid) != 10 {
-            return UpdateBehaviourDesc {
-                transition_state: GameStateTransitionState::ReturnToPreviousState,
-                block_input: false,
-            };
-        }
+    if selected_fields == 10 && count_selected_fields(&prev_frame_data.grid) != 10 {
+        return UpdateBehaviourDesc {
+            transition_state: GameStateTransitionState::ReturnToPreviousState,
+            block_input: false,
+        };
     }
 
     // don't need to switch game states

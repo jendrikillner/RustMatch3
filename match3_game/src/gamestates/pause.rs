@@ -30,7 +30,7 @@ pub struct PauseStateFrameData {
 }
 
 impl PauseStateFrameData {
-    pub fn new<'a>() -> PauseStateFrameData {
+    pub fn new() -> PauseStateFrameData {
         PauseStateFrameData {
             fade_in_status: 0.0,
         }
@@ -56,22 +56,18 @@ impl PauseState<'_> {
 pub fn update_pause_state(
     prev_frame_params: &PauseStateFrameData,
     frame_params: &mut PauseStateFrameData,
-    messages: &Vec<WindowMessages>,
+    messages: &[WindowMessages],
     dt: f32,
 ) -> UpdateBehaviourDesc {
     // fade in the screen state
     frame_params.fade_in_status = clamp(prev_frame_params.fade_in_status + dt, 0.0, 1.0);
 
     for x in messages.iter() {
-        match x {
-            WindowMessages::MouseLeftButtonDown => {
-                return UpdateBehaviourDesc {
-                    transition_state: GameStateTransitionState::ReturnToPreviousState,
-                    block_input: true,
-                }
-            }
-
-            _ => {}
+        if let WindowMessages::MouseLeftButtonDown = x {
+            return UpdateBehaviourDesc {
+                transition_state: GameStateTransitionState::ReturnToPreviousState,
+                block_input: true,
+            };
         }
     }
 

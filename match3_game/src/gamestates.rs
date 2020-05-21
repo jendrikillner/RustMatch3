@@ -116,7 +116,7 @@ pub fn update_gamestate_stack(
 }
 
 pub fn draw_gamestate_stack(
-    game_state_stack: &Vec<GameStateData>,
+    game_state_stack: &[GameStateData],
     frame_number: u64,
     command_list: &mut GraphicsCommandList,
     backbuffer_rtv: &RenderTargetView,
