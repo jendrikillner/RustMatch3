@@ -63,6 +63,8 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
     // static DDSD_LINEARSIZE : u32 = 0x80000;
     // static DDSD_DEPTH : u32 = 0x800000;
 
+	static DDPF_FOURCC : u32 = 0x4;
+
     if dds_header_dw_flags & DDSD_CAPS == 0 {
         return Err(DdsParserError::InvalidFlags);
     }
@@ -87,11 +89,11 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_dw_pitch_or_linear_size: u32 =
+    let _dds_header_dw_pitch_or_linear_size: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_dw_depth: u32 =
+    let _dds_header_dw_depth: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
@@ -121,32 +123,32 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_pixel_format_RGBBitCount: u32 =
+    let _dds_header_pixel_format_rgb_bit_count: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_pixel_format_RBitMask: u32 =
+    let _dds_header_pixel_format_r_bit_mask: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_pixel_format_GBitMask: u32 =
+    let _dds_header_pixel_format_g_bit_mask: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_pixel_format_BBitMask: u32 =
+    let _dds_header_pixel_format_b_bit_mask: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_pixel_format_ABitMask: u32 =
+    let _dds_header_pixel_format_a_bit_mask: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
     // back to parsing the rest of the DDS_HEADER
-    let dds_header_caps1: u32 =
+    let _dds_header_caps1: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
-    let dds_header_caps2: u32 =
+    let _dds_header_caps2: u32 =
         u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
     file_cursor += 4;
 
@@ -158,11 +160,17 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
     // otherwise there is a bug in the previos parser code
     assert!(file_cursor == 128);
 
+	// decide if we need to parse the DXT10 header too
+	assert!( dds_header_pixel_format_fourcc != 0x30315844 ); // DXT10 not yet supported
+
+	assert!( dds_header_pixel_format_flags & DDPF_FOURCC > 0 ); // only compressed textures are supported for now
+
+	// fill the texture header with the information we parsed
     let texture_header_ref = D3D11_TEXTURE2D_DESC {
-        Width: 4,
-        Height: 4,
-        MipLevels: 0,
-        ArraySize: 0,
+        Width: dds_header_dw_width,
+        Height: dds_header_dw_height,
+        MipLevels: dds_header_dw_mip_map_count,
+        ArraySize: 0, // only supported with DXT10 headers
         Format: DXGI_FORMAT_BC1_UNORM,
         SampleDesc: DXGI_SAMPLE_DESC {
             Count: 1,
@@ -183,7 +191,7 @@ mod tests {
 
     // embed the data we will be testing against
     mod paintnet {
-        pub static BLACK_4X4_BC1: &'static [u8; 240128] =
+        pub static BLACK_4X4_BC1: &'static [u8; 136] =
             include_bytes!("../tests/data/paintnet/black_4x4_bc1.dds");
         // pub static BLACK_4X4_MIPS_BC1 : &'static [u8; 320552] = include_bytes!("../tests/data/paintnet/black_4x4_mips_bc1.dds");
     }
