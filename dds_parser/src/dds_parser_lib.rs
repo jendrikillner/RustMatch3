@@ -2,6 +2,7 @@ use winapi::um::d3d11::*;
 use winapi::shared::dxgiformat::*;
 use winapi::shared::dxgitype::*;
 
+#[derive(Debug)]
 pub enum DdsParserError {
 	InvalidHeader
 }
@@ -42,5 +43,19 @@ mod tests {
         let texture_load_result = parse_dds_header( paintnet::BLACK_4X4_BC1 );
 
 		assert_eq!( texture_load_result.is_ok(), true );
+
+		let texture_header = texture_load_result.unwrap();
+
+		assert_eq!( texture_header_ref.Width, texture_header.Width );
+		assert_eq!( texture_header_ref.Height, texture_header.Height );
+		assert_eq!( texture_header_ref.MipLevels, texture_header.MipLevels );
+		assert_eq!( texture_header_ref.ArraySize, texture_header.ArraySize );
+		assert_eq!( texture_header_ref.Format, texture_header.Format );
+		assert_eq!( texture_header_ref.SampleDesc.Count, texture_header.SampleDesc.Count );
+		assert_eq!( texture_header_ref.SampleDesc.Quality, texture_header.SampleDesc.Quality );
+		assert_eq!( texture_header_ref.Usage, texture_header.Usage );
+		assert_eq!( texture_header_ref.BindFlags, texture_header.BindFlags );
+		assert_eq!( texture_header_ref.MiscFlags, texture_header.MiscFlags );
+		assert_eq!( texture_header_ref.CPUAccessFlags, texture_header.CPUAccessFlags );
     }
 }
