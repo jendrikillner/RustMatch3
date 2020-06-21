@@ -165,6 +165,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
 	assert!( dds_header_pixel_format_fourcc != 0x30315844 ); // DXT10 not yet supported
 
 	assert!( dds_header_pixel_format_flags & DDPF_FOURCC > 0 ); // only compressed textures are supported for now
+	assert!( dds_header_dw_mip_map_count == 0 ); // only textures without mipmaps are supported for now
 
 	let format = match dds_header_pixel_format_fourcc {
 		0x31545844 => DXGI_FORMAT_BC1_UNORM,
@@ -202,6 +203,30 @@ mod tests {
         // pub static BLACK_4X4_MIPS_BC1 : &'static [u8; 320552] = include_bytes!("../tests/data/paintnet/black_4x4_mips_bc1.dds");
     }
 
+	fn validate_texture_header( texture_header_ref : & D3D11_TEXTURE2D_DESC, texture_header : &D3D11_TEXTURE2D_DESC )
+	{
+		assert_eq!(texture_header_ref.Width, texture_header.Width);
+        assert_eq!(texture_header_ref.Height, texture_header.Height);
+        assert_eq!(texture_header_ref.MipLevels, texture_header.MipLevels);
+        assert_eq!(texture_header_ref.ArraySize, texture_header.ArraySize);
+        assert_eq!(texture_header_ref.Format, texture_header.Format);
+        assert_eq!(
+            texture_header_ref.SampleDesc.Count,
+            texture_header.SampleDesc.Count
+        );
+        assert_eq!(
+            texture_header_ref.SampleDesc.Quality,
+            texture_header.SampleDesc.Quality
+        );
+        assert_eq!(texture_header_ref.Usage, texture_header.Usage);
+        assert_eq!(texture_header_ref.BindFlags, texture_header.BindFlags);
+        assert_eq!(texture_header_ref.MiscFlags, texture_header.MiscFlags);
+        assert_eq!(
+            texture_header_ref.CPUAccessFlags,
+            texture_header.CPUAccessFlags
+        );
+	}
+
     #[test]
     fn sum_test() {
         let texture_header_ref = D3D11_TEXTURE2D_DESC {
@@ -226,25 +251,6 @@ mod tests {
 
         let texture_header = texture_load_result.unwrap();
 
-        assert_eq!(texture_header_ref.Width, texture_header.Width);
-        assert_eq!(texture_header_ref.Height, texture_header.Height);
-        assert_eq!(texture_header_ref.MipLevels, texture_header.MipLevels);
-        assert_eq!(texture_header_ref.ArraySize, texture_header.ArraySize);
-        assert_eq!(texture_header_ref.Format, texture_header.Format);
-        assert_eq!(
-            texture_header_ref.SampleDesc.Count,
-            texture_header.SampleDesc.Count
-        );
-        assert_eq!(
-            texture_header_ref.SampleDesc.Quality,
-            texture_header.SampleDesc.Quality
-        );
-        assert_eq!(texture_header_ref.Usage, texture_header.Usage);
-        assert_eq!(texture_header_ref.BindFlags, texture_header.BindFlags);
-        assert_eq!(texture_header_ref.MiscFlags, texture_header.MiscFlags);
-        assert_eq!(
-            texture_header_ref.CPUAccessFlags,
-            texture_header.CPUAccessFlags
-        );
+		validate_texture_header(&texture_header_ref, &texture_header);
     }
 }
