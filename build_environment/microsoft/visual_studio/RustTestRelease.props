@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <NMakeBuildCommandLine>cargo test --release</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>cargo clean &amp;&amp; cargo test --release</NMakeReBuildCommandLine>
+    <NMakeBuildCommandLine>cargo test --release --all</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>cargo clean &amp;&amp; cargo test --release --all</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>cargo clean</NMakeCleanCommandLine>
   </PropertyGroup>
   <ItemDefinitionGroup />
