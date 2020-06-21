@@ -10,7 +10,12 @@ pub enum DdsParserError {
     FormatNotSupported,
 }
 
-pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsParserError> {
+pub struct ParsedTextureData {
+	pub desc : D3D11_TEXTURE2D_DESC,
+	pub subresources_data : Vec<D3D11_SUBRESOURCE_DATA>,
+}
+
+pub fn parse_dds_header(src_data: &[u8]) -> Result< ParsedTextureData, DdsParserError> {
     // each dds file follows a high level structure
     // DWORD with value "DDS " 0x20534444
     // DDS_HEADER
@@ -190,7 +195,24 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
         CPUAccessFlags: 0,
     };
 
-    Ok(texture_header_ref)
+	let mut subresources : Vec<D3D11_SUBRESOURCE_DATA> = Vec::new();
+
+	let block_size = match format {
+		DXGI_FORMAT_BC1_UNORM => { 8 },
+		_ => { return Err(DdsParserError::FormatNotSupported); }
+	};
+
+	let line_pitch = std::cmp::max( 1, (texture_header_ref.Width+3)/4 ) * block_size;
+
+	subresources.push(
+		D3D11_SUBRESOURCE_DATA {
+			pSysMem : std::ptr::null_mut(), // todo, calculate this correctly
+			SysMemPitch : line_pitch,
+			SysMemSlicePitch : line_pitch * texture_header_ref.Height,
+		}
+	);
+
+    Ok(  ParsedTextureData { desc : texture_header_ref, subresources_data : subresources } )
 }
 
 #[cfg(test)]
@@ -249,13 +271,25 @@ mod tests {
             CPUAccessFlags: 0,
         };
 
+		let texture_data_desc = D3D11_SUBRESOURCE_DATA  {
+			pSysMem : std::ptr::null_mut(), // can't validate this, will be pointing into the original block
+			SysMemPitch : 8, // 4x4 texture = 1 BC1 block = 8 bytes
+			SysMemSlicePitch : 32, // 1 block
+		};
+
         let texture_load_result = parse_dds_header(paintnet::BLACK_4X4_BC1);
 
         assert_eq!(texture_load_result.is_ok(), true);
 
         let texture_header = texture_load_result.unwrap();
 
-        validate_texture_header(&texture_header_ref, &texture_header);
+        validate_texture_header(&texture_header_ref, &texture_header.desc);
+
+		// should contain one subresource
+		assert_eq! (texture_header.subresources_data.len(), 1);
+
+		assert_eq!( texture_data_desc.SysMemPitch, texture_header.subresources_data[0].SysMemPitch );
+		assert_eq!( texture_data_desc.SysMemSlicePitch, texture_header.subresources_data[0].SysMemSlicePitch );
     }
 
     #[test]
@@ -282,6 +316,6 @@ mod tests {
 
         let texture_header = texture_load_result.unwrap();
 
-        validate_texture_header(&texture_header_ref, &texture_header);
+        validate_texture_header(&texture_header_ref, &texture_header.desc);
     }
 }
