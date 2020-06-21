@@ -7,6 +7,7 @@ use winapi::um::d3d11::*;
 pub enum DdsParserError {
     InvalidHeader,
     InvalidFlags,
+	FormatNotSupported,
 }
 
 pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsParserError> {
@@ -165,13 +166,18 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
 
 	assert!( dds_header_pixel_format_flags & DDPF_FOURCC > 0 ); // only compressed textures are supported for now
 
+	let format = match dds_header_pixel_format_fourcc {
+		0x31545844 => DXGI_FORMAT_BC1_UNORM,
+		_ => { return Err(DdsParserError::FormatNotSupported); }
+	};
+
 	// fill the texture header with the information we parsed
     let texture_header_ref = D3D11_TEXTURE2D_DESC {
         Width: dds_header_dw_width,
         Height: dds_header_dw_height,
         MipLevels: dds_header_dw_mip_map_count,
         ArraySize: 0, // only supported with DXT10 headers
-        Format: DXGI_FORMAT_BC1_UNORM,
+        Format: format,
         SampleDesc: DXGI_SAMPLE_DESC {
             Count: 1,
             Quality: 1,
