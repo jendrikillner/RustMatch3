@@ -7,7 +7,7 @@ use winapi::um::d3d11::*;
 pub enum DdsParserError {
     InvalidHeader,
     InvalidFlags,
-	FormatNotSupported,
+    FormatNotSupported,
 }
 
 pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsParserError> {
@@ -64,7 +64,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
     // static DDSD_LINEARSIZE : u32 = 0x80000;
     // static DDSD_DEPTH : u32 = 0x800000;
 
-	static DDPF_FOURCC : u32 = 0x4;
+    static DDPF_FOURCC: u32 = 0x4;
 
     if dds_header_dw_flags & DDSD_CAPS == 0 {
         return Err(DdsParserError::InvalidFlags);
@@ -161,18 +161,19 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<D3D11_TEXTURE2D_DESC, DdsPars
     // otherwise there is a bug in the previos parser code
     assert!(file_cursor == 128);
 
-	// decide if we need to parse the DXT10 header too
-	assert!( dds_header_pixel_format_fourcc != 0x30315844 ); // DXT10 not yet supported
+    // decide if we need to parse the DXT10 header too
+    assert!(dds_header_pixel_format_fourcc != 0x30315844); // DXT10 not yet supported
 
-	assert!( dds_header_pixel_format_flags & DDPF_FOURCC > 0 ); // only compressed textures are supported for now
-	assert!( dds_header_dw_mip_map_count == 0 ); // only textures without mipmaps are supported for now
+    assert!(dds_header_pixel_format_flags & DDPF_FOURCC > 0); // only compressed textures are supported for now
 
-	let format = match dds_header_pixel_format_fourcc {
-		0x31545844 => DXGI_FORMAT_BC1_UNORM,
-		_ => { return Err(DdsParserError::FormatNotSupported); }
-	};
+    let format = match dds_header_pixel_format_fourcc {
+        0x31545844 => DXGI_FORMAT_BC1_UNORM,
+        _ => {
+            return Err(DdsParserError::FormatNotSupported);
+        }
+    };
 
-	// fill the texture header with the information we parsed
+    // fill the texture header with the information we parsed
     let texture_header_ref = D3D11_TEXTURE2D_DESC {
         Width: dds_header_dw_width,
         Height: dds_header_dw_height,
@@ -200,12 +201,15 @@ mod tests {
     mod paintnet {
         pub static BLACK_4X4_BC1: &'static [u8; 136] =
             include_bytes!("../tests/data/paintnet/black_4x4_bc1.dds");
-        // pub static BLACK_4X4_MIPS_BC1 : &'static [u8; 320552] = include_bytes!("../tests/data/paintnet/black_4x4_mips_bc1.dds");
+        pub static BLACK_4X4_MIPS_BC1: &'static [u8; 152] =
+            include_bytes!("../tests/data/paintnet/black_4x4_mips_bc1.dds");
     }
 
-	fn validate_texture_header( texture_header_ref : & D3D11_TEXTURE2D_DESC, texture_header : &D3D11_TEXTURE2D_DESC )
-	{
-		assert_eq!(texture_header_ref.Width, texture_header.Width);
+    fn validate_texture_header(
+        texture_header_ref: &D3D11_TEXTURE2D_DESC,
+        texture_header: &D3D11_TEXTURE2D_DESC,
+    ) {
+        assert_eq!(texture_header_ref.Width, texture_header.Width);
         assert_eq!(texture_header_ref.Height, texture_header.Height);
         assert_eq!(texture_header_ref.MipLevels, texture_header.MipLevels);
         assert_eq!(texture_header_ref.ArraySize, texture_header.ArraySize);
@@ -225,7 +229,7 @@ mod tests {
             texture_header_ref.CPUAccessFlags,
             texture_header.CPUAccessFlags
         );
-	}
+    }
 
     #[test]
     fn test_black_4x4_bc1() {
@@ -251,6 +255,33 @@ mod tests {
 
         let texture_header = texture_load_result.unwrap();
 
-		validate_texture_header(&texture_header_ref, &texture_header);
+        validate_texture_header(&texture_header_ref, &texture_header);
+    }
+
+    #[test]
+    fn test_black_4x4_mips_bc1() {
+        let texture_header_ref = D3D11_TEXTURE2D_DESC {
+            Width: 4,
+            Height: 4,
+            MipLevels: 3,
+            ArraySize: 0,
+            Format: DXGI_FORMAT_BC1_UNORM,
+            SampleDesc: DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 1,
+            },
+            Usage: D3D11_USAGE_DEFAULT,
+            BindFlags: 0,
+            MiscFlags: 0,
+            CPUAccessFlags: 0,
+        };
+
+        let texture_load_result = parse_dds_header(paintnet::BLACK_4X4_MIPS_BC1);
+
+        assert_eq!(texture_load_result.is_ok(), true);
+
+        let texture_header = texture_load_result.unwrap();
+
+        validate_texture_header(&texture_header_ref, &texture_header);
     }
 }
