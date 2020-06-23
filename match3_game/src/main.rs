@@ -6,6 +6,8 @@ use gamestates::*;
 use graphics_device::*;
 use os_window::*;
 
+use std::io::Read;
+
 pub fn as_fractional_secs(dur: &std::time::Duration) -> f32 {
     (dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000.0) as f32
 }
@@ -83,6 +85,27 @@ fn main() {
 
     let mut graphics_layer: GraphicsDeviceLayer =
         create_device_graphics_layer(main_window.hwnd, args.enable_debug_device).unwrap();
+
+    // load the test texture
+    let file = std::fs::File::open(
+        "C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/black_4x4_bc1.dds",
+    );
+    let mut data = Vec::new();
+    file.unwrap().read_to_end(&mut data);
+
+    // parse the header
+    let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
+
+    let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
+
+    // and create the texture with the loaded information
+    unsafe {
+        graphics_layer.device.native.CreateTexture2D(
+            &texture_load_result.desc,
+            texture_load_result.subresources_data.as_ptr(),
+            &mut texture,
+        );
+    }
 
     let mut engine_frame_params0 = FrameParams {
         cpu_render: CpuRenderFrameData {
@@ -204,5 +227,13 @@ fn main() {
         execute_command_list(&graphics_layer, &graphics_layer.graphics_command_list);
 
         present_swapchain(&graphics_layer);
+    }
+
+    unsafe {
+        leak_check_release(
+            texture.as_ref().unwrap(),
+            0,
+            graphics_layer.device.debug_device,
+        );
     }
 }
