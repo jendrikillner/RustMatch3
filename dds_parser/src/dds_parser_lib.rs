@@ -11,11 +11,11 @@ pub enum DdsParserError {
 }
 
 pub struct ParsedTextureData {
-	pub desc : D3D11_TEXTURE2D_DESC,
-	pub subresources_data : Vec<D3D11_SUBRESOURCE_DATA>,
+    pub desc: D3D11_TEXTURE2D_DESC,
+    pub subresources_data: Vec<D3D11_SUBRESOURCE_DATA>,
 }
 
-pub fn parse_dds_header(src_data: &[u8]) -> Result< ParsedTextureData, DdsParserError> {
+pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserError> {
     // each dds file follows a high level structure
     // DWORD with value "DDS " 0x20534444
     // DDS_HEADER
@@ -65,7 +65,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result< ParsedTextureData, DdsParser
     static DDSD_WIDTH: u32 = 0x4;
     // static DDSD_PITCH : u32 = 0x8;
     static DDSD_PIXELFORMAT: u32 = 0x1000;
-    // static DDSD_MIPMAPCOUNT : u32 = 0x20000;
+    static DDSD_MIPMAPCOUNT: u32 = 0x20000;
     // static DDSD_LINEARSIZE : u32 = 0x80000;
     // static DDSD_DEPTH : u32 = 0x800000;
 
@@ -178,16 +178,22 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result< ParsedTextureData, DdsParser
         }
     };
 
+    let mipmap_count = if dds_header_dw_flags & DDSD_MIPMAPCOUNT > 0 {
+        dds_header_dw_mip_map_count
+    } else {
+        1
+    };
+
     // fill the texture header with the information we parsed
     let texture_header_ref = D3D11_TEXTURE2D_DESC {
         Width: dds_header_dw_width,
         Height: dds_header_dw_height,
-        MipLevels: dds_header_dw_mip_map_count,
-        ArraySize: 0, // only supported with DXT10 headers
+        MipLevels: mipmap_count,
+        ArraySize: 1, // only supported with DXT10 headers
         Format: format,
         SampleDesc: DXGI_SAMPLE_DESC {
             Count: 1,
-            Quality: 1,
+            Quality: 0,
         },
         Usage: D3D11_USAGE_DEFAULT,
         BindFlags: 0,
@@ -195,24 +201,29 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result< ParsedTextureData, DdsParser
         CPUAccessFlags: 0,
     };
 
-	let mut subresources : Vec<D3D11_SUBRESOURCE_DATA> = Vec::new();
+    let mut subresources: Vec<D3D11_SUBRESOURCE_DATA> = Vec::new();
 
-	let block_size = match format {
-		DXGI_FORMAT_BC1_UNORM => { 8 },
-		_ => { return Err(DdsParserError::FormatNotSupported); }
-	};
+    let block_size = match format {
+        DXGI_FORMAT_BC1_UNORM => 8,
+        _ => {
+            return Err(DdsParserError::FormatNotSupported);
+        }
+    };
 
-	let line_pitch = std::cmp::max( 1, (texture_header_ref.Width+3)/4 ) * block_size;
+    let line_pitch = std::cmp::max(1, (texture_header_ref.Width + 3) / 4) * block_size;
+    let slice_pitch = line_pitch;
 
-	subresources.push(
-		D3D11_SUBRESOURCE_DATA {
-			pSysMem : std::ptr::null_mut(), // todo, calculate this correctly
-			SysMemPitch : line_pitch,
-			SysMemSlicePitch : line_pitch * texture_header_ref.Height,
-		}
-	);
+    subresources.push(D3D11_SUBRESOURCE_DATA {
+        pSysMem: src_data[file_cursor..(file_cursor + (slice_pitch as usize))].as_ptr()
+            as *const winapi::ctypes::c_void, // todo, calculate this correctly
+        SysMemPitch: line_pitch,
+        SysMemSlicePitch: slice_pitch,
+    });
 
-    Ok(  ParsedTextureData { desc : texture_header_ref, subresources_data : subresources } )
+    Ok(ParsedTextureData {
+        desc: texture_header_ref,
+        subresources_data: subresources,
+    })
 }
 
 #[cfg(test)]
@@ -271,11 +282,11 @@ mod tests {
             CPUAccessFlags: 0,
         };
 
-		let texture_data_desc = D3D11_SUBRESOURCE_DATA  {
-			pSysMem : std::ptr::null_mut(), // can't validate this, will be pointing into the original block
-			SysMemPitch : 8, // 4x4 texture = 1 BC1 block = 8 bytes
-			SysMemSlicePitch : 32, // 1 block
-		};
+        let texture_data_desc = D3D11_SUBRESOURCE_DATA {
+            pSysMem: std::ptr::null_mut(), // can't validate this, will be pointing into the original block
+            SysMemPitch: 8,                // 4x4 texture = 1 BC1 block = 8 bytes
+            SysMemSlicePitch: 32,          // 1 block
+        };
 
         let texture_load_result = parse_dds_header(paintnet::BLACK_4X4_BC1);
 
@@ -285,11 +296,17 @@ mod tests {
 
         validate_texture_header(&texture_header_ref, &texture_header.desc);
 
-		// should contain one subresource
-		assert_eq! (texture_header.subresources_data.len(), 1);
+        // should contain one subresource
+        assert_eq!(texture_header.subresources_data.len(), 1);
 
-		assert_eq!( texture_data_desc.SysMemPitch, texture_header.subresources_data[0].SysMemPitch );
-		assert_eq!( texture_data_desc.SysMemSlicePitch, texture_header.subresources_data[0].SysMemSlicePitch );
+        assert_eq!(
+            texture_data_desc.SysMemPitch,
+            texture_header.subresources_data[0].SysMemPitch
+        );
+        assert_eq!(
+            texture_data_desc.SysMemSlicePitch,
+            texture_header.subresources_data[0].SysMemSlicePitch
+        );
     }
 
     #[test]
