@@ -7,6 +7,8 @@ use std::io::Read;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
+	texture: *mut winapi::um::d3d11::ID3D11Texture2D,
+	texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView ,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -21,7 +23,7 @@ impl GameplayStateStaticData<'_> {
 
 		// load the test texture
 		let file = std::fs::File::open(
-			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/black_4x4_bc1.dds",
+			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/red_4x4_bc1.dds",
 		);
 		let mut data = Vec::new();
 		let file_read_result_ = file.unwrap().read_to_end(&mut data);
@@ -30,6 +32,7 @@ impl GameplayStateStaticData<'_> {
 		let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
 
 		let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
+		let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
 
 		// and create the texture with the loaded information
 		unsafe {
@@ -40,10 +43,17 @@ impl GameplayStateStaticData<'_> {
 			);
 
 			// create a resource view
+			device_layer.device.native.CreateShaderResourceView(
+				texture as *mut winapi::um::d3d11::ID3D11Resource,
+				std::ptr::null_mut(),
+				&mut texture_view,
+			);
 		}
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
+			texture,
+			texture_view,
         }
     }
 }
@@ -234,6 +244,10 @@ pub fn draw_gameplay_state(
             );
 
             bind_constant(command_list, 0, &obj_alloc);
+			
+			unsafe {
+				command_list.command_context.as_ref().unwrap().PSSetShaderResources( 0, 1, & static_data.texture_view );
+			}
 
             draw_vertices(command_list, 4);
         }
