@@ -3,6 +3,7 @@ use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
 
 use graphics_device::*;
 use os_window::WindowMessages;
+use std::io::Read;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
@@ -17,6 +18,29 @@ impl GameplayStateStaticData<'_> {
                 premultiplied_alpha: false,
             },
         );
+
+		// load the test texture
+		let file = std::fs::File::open(
+			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/black_4x4_bc1.dds",
+		);
+		let mut data = Vec::new();
+		let file_read_result_ = file.unwrap().read_to_end(&mut data);
+
+		// parse the header
+		let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
+
+		let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
+
+		// and create the texture with the loaded information
+		unsafe {
+			device_layer.device.native.CreateTexture2D(
+				&texture_load_result.desc,
+				texture_load_result.subresources_data.as_ptr(),
+				&mut texture,
+			);
+
+			// create a resource view
+		}
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
