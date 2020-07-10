@@ -196,7 +196,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
             Quality: 0,
         },
         Usage: D3D11_USAGE_DEFAULT,
-        BindFlags: 0,
+        BindFlags: D3D11_BIND_SHADER_RESOURCE,
         MiscFlags: 0,
         CPUAccessFlags: 0,
     };
