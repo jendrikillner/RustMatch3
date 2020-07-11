@@ -34,24 +34,12 @@ impl GameplayStateStaticData<'_> {
 		// parse the header
 		let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
 
-		let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
-		let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
 		let mut sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
+
+		let (texture, texture_view) = create_texture( &device_layer.device, texture_load_result.desc, texture_load_result.subresources_data ).unwrap();
 
 		// and create the texture with the loaded information
 		unsafe {
-			device_layer.device.native.CreateTexture2D(
-				&texture_load_result.desc,
-				texture_load_result.subresources_data.as_ptr(),
-				&mut texture,
-			);
-
-			// create a resource view
-			device_layer.device.native.CreateShaderResourceView(
-				texture as *mut winapi::um::d3d11::ID3D11Resource,
-				std::ptr::null_mut(),
-				&mut texture_view,
-			);
 
 			let sampler_desc = winapi::um::d3d11::D3D11_SAMPLER_DESC {
 				Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
@@ -75,8 +63,8 @@ impl GameplayStateStaticData<'_> {
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
-			texture : Texture { native_texture : unsafe { texture.as_mut().unwrap() } },
-			texture_view: ShaderResourceView { native_view : unsafe { texture_view.as_mut().unwrap() } },
+			texture,
+			texture_view,
 			sampler : Sampler { native_sampler : unsafe{ sampler.as_mut().unwrap() } },
         }
     }
