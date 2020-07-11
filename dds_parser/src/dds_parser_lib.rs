@@ -307,6 +307,8 @@ mod tests {
             texture_data_desc.SysMemSlicePitch,
             texture_header.subresources_data[0].SysMemSlicePitch
         );
+
+        // validate that the texture can be created without any debug validation errors
     }
 
     #[test]

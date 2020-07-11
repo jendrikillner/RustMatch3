@@ -1,4 +1,3 @@
-use winapi::shared::winerror::S_OK;
 use winapi::shared::dxgi::*;
 use winapi::shared::dxgi1_2::*;
 use winapi::shared::dxgiformat::*;
@@ -6,6 +5,7 @@ use winapi::shared::dxgitype::*;
 use winapi::shared::minwindef::{UINT, ULONG};
 use winapi::shared::ntdef::HRESULT;
 use winapi::shared::windef::HWND;
+use winapi::shared::winerror::S_OK;
 use winapi::um::d3d11::*;
 use winapi::um::d3d11_1::*;
 use winapi::um::d3d11sdklayers::*;
@@ -242,36 +242,44 @@ impl Drop for Texture<'_> {
     }
 }
 
-pub fn create_texture<'a>( device: &GraphicsDevice, texture_desc : D3D11_TEXTURE2D_DESC, subresources_data : Vec<D3D11_SUBRESOURCE_DATA>) -> Result<(Texture<'a>, ShaderResourceView<'a>),()>
-{
+pub fn create_texture<'a>(
+    device: &GraphicsDevice,
+    texture_desc: D3D11_TEXTURE2D_DESC,
+    subresources_data: Vec<D3D11_SUBRESOURCE_DATA>,
+) -> Result<(Texture<'a>, ShaderResourceView<'a>), ()> {
+    let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
+    let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
 
-	let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
-	let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
+    unsafe {
+        let hr =
+            device
+                .native
+                .CreateTexture2D(&texture_desc, subresources_data.as_ptr(), &mut texture);
 
-	unsafe {
-		let hr = device.native.CreateTexture2D(
-			&texture_desc,
-			subresources_data.as_ptr(),
-			&mut texture,
-		);
+        if hr != S_OK {
+            return Err(());
+        }
 
-		if hr != S_OK {
-			return Err( () );
-		}
+        // create a resource view
+        let hr = device.native.CreateShaderResourceView(
+            texture as *mut winapi::um::d3d11::ID3D11Resource,
+            std::ptr::null_mut(),
+            &mut texture_view,
+        );
 
-		// create a resource view
-		let hr = device.native.CreateShaderResourceView(
-			texture as *mut winapi::um::d3d11::ID3D11Resource,
-			std::ptr::null_mut(),
-			&mut texture_view,
-		);
+        if hr != S_OK {
+            return Err(());
+        }
+    }
 
-		if hr != S_OK {
-			return Err( () );
-		}
-	}
-
-	return Ok( ( Texture { native_texture : unsafe{ texture.as_mut().unwrap() } }, ShaderResourceView { native_view : unsafe { texture_view.as_mut().unwrap() } } ) );
+    return Ok((
+        Texture {
+            native_texture: unsafe { texture.as_mut().unwrap() },
+        },
+        ShaderResourceView {
+            native_view: unsafe { texture_view.as_mut().unwrap() },
+        },
+    ));
 }
 
 pub struct Sampler<'a> {

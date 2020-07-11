@@ -1,7 +1,7 @@
-use winapi::um::d3d11::ID3D11SamplerState;
-use winapi::um::d3d11::ID3D11ShaderResourceView;
 use super::{GameStateTransitionState, GameStateType, UpdateBehaviourDesc};
 use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
+use winapi::um::d3d11::ID3D11SamplerState;
+use winapi::um::d3d11::ID3D11ShaderResourceView;
 
 use graphics_device::*;
 use os_window::WindowMessages;
@@ -9,9 +9,9 @@ use std::io::Read;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
-	texture: Texture<'a>,
-	texture_view: ShaderResourceView<'a> ,
-	sampler: Sampler<'a>,
+    texture: Texture<'a>,
+    texture_view: ShaderResourceView<'a>,
+    sampler: Sampler<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -24,48 +24,54 @@ impl GameplayStateStaticData<'_> {
             },
         );
 
-		// load the test texture
-		let file = std::fs::File::open(
+        // load the test texture
+        let file = std::fs::File::open(
 			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/red_smiley_64x64_bc1.dds",
 		);
-		let mut data = Vec::new();
-		let file_read_result_ = file.unwrap().read_to_end(&mut data);
+        let mut data = Vec::new();
+        let file_read_result_ = file.unwrap().read_to_end(&mut data);
 
-		// parse the header
-		let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
+        // parse the header
+        let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
 
-		let mut sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
+        let mut sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
 
-		let (texture, texture_view) = create_texture( &device_layer.device, texture_load_result.desc, texture_load_result.subresources_data ).unwrap();
+        let (texture, texture_view) = create_texture(
+            &device_layer.device,
+            texture_load_result.desc,
+            texture_load_result.subresources_data,
+        )
+        .unwrap();
 
-		// and create the texture with the loaded information
-		unsafe {
+        // and create the texture with the loaded information
+        unsafe {
+            let sampler_desc = winapi::um::d3d11::D3D11_SAMPLER_DESC {
+                Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+                AddressU: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+                AddressV: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+                AddressW: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+                MinLOD: 0.0,
+                MaxLOD: 32.0,
+                MipLODBias: 0.0,
+                MaxAnisotropy: 1,
+                ComparisonFunc: winapi::um::d3d11::D3D11_COMPARISON_NEVER,
+                BorderColor: [1.0, 1.0, 1.0, 1.0],
+            };
 
-			let sampler_desc = winapi::um::d3d11::D3D11_SAMPLER_DESC {
-				Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
-				AddressU: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
-				AddressV: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
-				AddressW: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
-				MinLOD: 0.0,
-				MaxLOD: 32.0,
-				MipLODBias: 0.0,
-				MaxAnisotropy: 1,
-				ComparisonFunc: winapi::um::d3d11::D3D11_COMPARISON_NEVER,
-				BorderColor: [1.0,1.0,1.0,1.0],
-			};
-
-			// create a sampler
-			device_layer.device.native.CreateSamplerState(
-				&sampler_desc,
-				&mut sampler,
-			);
-		}
+            // create a sampler
+            device_layer
+                .device
+                .native
+                .CreateSamplerState(&sampler_desc, &mut sampler);
+        }
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
-			texture,
-			texture_view,
-			sampler : Sampler { native_sampler : unsafe{ sampler.as_mut().unwrap() } },
+            texture,
+            texture_view,
+            sampler: Sampler {
+                native_sampler: unsafe { sampler.as_mut().unwrap() },
+            },
         }
     }
 }
@@ -256,22 +262,31 @@ pub fn draw_gameplay_state(
             );
 
             bind_constant(command_list, 0, &obj_alloc);
-			
-			unsafe {
 
-				let sampler_mut: *mut ID3D11SamplerState =
-            static_data.sampler.native_sampler as *const ID3D11SamplerState as u64 as *mut ID3D11SamplerState;
+            unsafe {
+                let sampler_mut: *mut ID3D11SamplerState =
+                    static_data.sampler.native_sampler as *const ID3D11SamplerState as u64
+                        as *mut ID3D11SamplerState;
 
-				let samplers: [*mut winapi::um::d3d11::ID3D11SamplerState; 1] = [sampler_mut];
+                let samplers: [*mut winapi::um::d3d11::ID3D11SamplerState; 1] = [sampler_mut];
 
-				command_list.command_context.as_ref().unwrap().PSSetSamplers( 0, 1, samplers.as_ptr() );
+                command_list
+                    .command_context
+                    .as_ref()
+                    .unwrap()
+                    .PSSetSamplers(0, 1, samplers.as_ptr());
 
-				let srv_mut: *mut ID3D11ShaderResourceView =
-            static_data.texture_view.native_view as *const ID3D11ShaderResourceView as u64 as *mut ID3D11ShaderResourceView;
+                let srv_mut: *mut ID3D11ShaderResourceView =
+                    static_data.texture_view.native_view as *const ID3D11ShaderResourceView as u64
+                        as *mut ID3D11ShaderResourceView;
 
-				let srvs: [*mut winapi::um::d3d11::ID3D11ShaderResourceView; 1] = [srv_mut];
-				command_list.command_context.as_ref().unwrap().PSSetShaderResources( 0, 1, srvs.as_ptr() );
-			}
+                let srvs: [*mut winapi::um::d3d11::ID3D11ShaderResourceView; 1] = [srv_mut];
+                command_list
+                    .command_context
+                    .as_ref()
+                    .unwrap()
+                    .PSSetShaderResources(0, 1, srvs.as_ptr());
+            }
 
             draw_vertices(command_list, 4);
         }
