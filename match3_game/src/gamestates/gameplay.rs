@@ -1,3 +1,4 @@
+use winapi::um::d3d11::ID3D11SamplerState;
 use winapi::um::d3d11::ID3D11ShaderResourceView;
 use super::{GameStateTransitionState, GameStateType, UpdateBehaviourDesc};
 use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
@@ -10,7 +11,7 @@ pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
 	texture: Texture<'a>,
 	texture_view: ShaderResourceView<'a> ,
-	sampler: *mut winapi::um::d3d11::ID3D11SamplerState ,
+	sampler: Sampler<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -76,7 +77,7 @@ impl GameplayStateStaticData<'_> {
             screen_space_quad_opaque_pso,
 			texture : Texture { native_texture : unsafe { texture.as_mut().unwrap() } },
 			texture_view: ShaderResourceView { native_view : unsafe { texture_view.as_mut().unwrap() } },
-			sampler,
+			sampler : Sampler { native_sampler : unsafe{ sampler.as_mut().unwrap() } },
         }
     }
 }
@@ -270,7 +271,12 @@ pub fn draw_gameplay_state(
 			
 			unsafe {
 
-				command_list.command_context.as_ref().unwrap().PSSetSamplers( 0, 1, &static_data.sampler );
+				let sampler_mut: *mut ID3D11SamplerState =
+            static_data.sampler.native_sampler as *const ID3D11SamplerState as u64 as *mut ID3D11SamplerState;
+
+				let samplers: [*mut winapi::um::d3d11::ID3D11SamplerState; 1] = [sampler_mut];
+
+				command_list.command_context.as_ref().unwrap().PSSetSamplers( 0, 1, samplers.as_ptr() );
 
 				let srv_mut: *mut ID3D11ShaderResourceView =
             static_data.texture_view.native_view as *const ID3D11ShaderResourceView as u64 as *mut ID3D11ShaderResourceView;
