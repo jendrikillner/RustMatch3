@@ -9,6 +9,7 @@ pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
 	texture: *mut winapi::um::d3d11::ID3D11Texture2D,
 	texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView ,
+	sampler: *mut winapi::um::d3d11::ID3D11SamplerState ,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -33,6 +34,7 @@ impl GameplayStateStaticData<'_> {
 
 		let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
 		let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
+		let mut sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
 
 		// and create the texture with the loaded information
 		unsafe {
@@ -48,12 +50,32 @@ impl GameplayStateStaticData<'_> {
 				std::ptr::null_mut(),
 				&mut texture_view,
 			);
+
+			let sampler_desc = winapi::um::d3d11::D3D11_SAMPLER_DESC {
+				Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+				AddressU: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+				AddressV: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+				AddressW: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+				MinLOD: 0.0,
+				MaxLOD: 32.0,
+				MipLODBias: 0.0,
+				MaxAnisotropy: 1,
+				ComparisonFunc: winapi::um::d3d11::D3D11_COMPARISON_NEVER,
+				BorderColor: [1.0,1.0,1.0,1.0],
+			};
+
+			// create a sampler
+			device_layer.device.native.CreateSamplerState(
+				&sampler_desc,
+				&mut sampler,
+			);
 		}
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
 			texture,
 			texture_view,
+			sampler,
         }
     }
 }
@@ -246,6 +268,9 @@ pub fn draw_gameplay_state(
             bind_constant(command_list, 0, &obj_alloc);
 			
 			unsafe {
+
+				command_list.command_context.as_ref().unwrap().PSSetSamplers( 0, 1, &static_data.sampler );
+
 				command_list.command_context.as_ref().unwrap().PSSetShaderResources( 0, 1, & static_data.texture_view );
 			}
 
