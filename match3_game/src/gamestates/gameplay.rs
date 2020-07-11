@@ -26,7 +26,7 @@ impl GameplayStateStaticData<'_> {
 
 		// load the test texture
 		let file = std::fs::File::open(
-			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/red_4x4_bc1.dds",
+			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/red_smiley_64x64_bc1.dds",
 		);
 		let mut data = Vec::new();
 		let file_read_result_ = file.unwrap().read_to_end(&mut data);
