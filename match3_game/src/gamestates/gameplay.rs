@@ -8,7 +8,7 @@ use std::io::Read;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
-	texture: *mut winapi::um::d3d11::ID3D11Texture2D,
+	texture: Texture<'a>,
 	texture_view: ShaderResourceView<'a> ,
 	sampler: *mut winapi::um::d3d11::ID3D11SamplerState ,
 }
@@ -74,7 +74,7 @@ impl GameplayStateStaticData<'_> {
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
-			texture,
+			texture : Texture { native_texture : unsafe { texture.as_mut().unwrap() } },
 			texture_view: ShaderResourceView { native_view : unsafe { texture_view.as_mut().unwrap() } },
 			sampler,
         }

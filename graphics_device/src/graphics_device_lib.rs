@@ -231,6 +231,16 @@ impl Drop for ShaderResourceView<'_> {
     }
 }
 
+pub struct Texture<'a> {
+    pub native_texture: &'a mut winapi::um::d3d11::ID3D11Texture2D,
+}
+
+impl Drop for Texture<'_> {
+    fn drop(&mut self) {
+        leak_check_release(self.native_texture, 0, None);
+    }
+}
+
 pub struct GraphicsDevice<'a> {
     pub native: &'a mut ID3D11Device,
     pub debug_device: Option<&'a ID3D11Debug>,
