@@ -1,3 +1,4 @@
+use winapi::um::d3d11::ID3D11ShaderResourceView;
 use super::{GameStateTransitionState, GameStateType, UpdateBehaviourDesc};
 use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
 
@@ -8,7 +9,7 @@ use std::io::Read;
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
 	texture: *mut winapi::um::d3d11::ID3D11Texture2D,
-	texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView ,
+	texture_view: ShaderResourceView<'a> ,
 	sampler: *mut winapi::um::d3d11::ID3D11SamplerState ,
 }
 
@@ -74,7 +75,7 @@ impl GameplayStateStaticData<'_> {
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
 			texture,
-			texture_view,
+			texture_view: ShaderResourceView { native_view : unsafe { texture_view.as_mut().unwrap() } },
 			sampler,
         }
     }
@@ -271,7 +272,11 @@ pub fn draw_gameplay_state(
 
 				command_list.command_context.as_ref().unwrap().PSSetSamplers( 0, 1, &static_data.sampler );
 
-				command_list.command_context.as_ref().unwrap().PSSetShaderResources( 0, 1, & static_data.texture_view );
+				let srv_mut: *mut ID3D11ShaderResourceView =
+            static_data.texture_view.native_view as *const ID3D11ShaderResourceView as u64 as *mut ID3D11ShaderResourceView;
+
+				let srvs: [*mut winapi::um::d3d11::ID3D11ShaderResourceView; 1] = [srv_mut];
+				command_list.command_context.as_ref().unwrap().PSSetShaderResources( 0, 1, srvs.as_ptr() );
 			}
 
             draw_vertices(command_list, 4);
