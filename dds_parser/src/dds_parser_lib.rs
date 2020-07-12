@@ -281,15 +281,15 @@ mod tests {
         let texture_header_ref = D3D11_TEXTURE2D_DESC {
             Width: 4,
             Height: 4,
-            MipLevels: 0,
-            ArraySize: 0,
+            MipLevels: 1,
+            ArraySize: 1,
             Format: DXGI_FORMAT_BC1_UNORM,
             SampleDesc: DXGI_SAMPLE_DESC {
                 Count: 1,
-                Quality: 1,
+                Quality: 0,
             },
             Usage: D3D11_USAGE_DEFAULT,
-            BindFlags: 0,
+            BindFlags: D3D11_BIND_SHADER_RESOURCE,
             MiscFlags: 0,
             CPUAccessFlags: 0,
         };
@@ -297,7 +297,7 @@ mod tests {
         let texture_data_desc = D3D11_SUBRESOURCE_DATA {
             pSysMem: std::ptr::null_mut(), // can't validate this, will be pointing into the original block
             SysMemPitch: 8,                // 4x4 texture = 1 BC1 block = 8 bytes
-            SysMemSlicePitch: 32,          // 1 block
+            SysMemSlicePitch: 8,           // 1 block
         };
 
         let texture_load_result = parse_dds_header(paintnet::BLACK_4X4_BC1);
@@ -329,14 +329,14 @@ mod tests {
             Width: 4,
             Height: 4,
             MipLevels: 3,
-            ArraySize: 0,
+            ArraySize: 1,
             Format: DXGI_FORMAT_BC1_UNORM,
             SampleDesc: DXGI_SAMPLE_DESC {
                 Count: 1,
-                Quality: 1,
+                Quality: 0,
             },
             Usage: D3D11_USAGE_DEFAULT,
-            BindFlags: 0,
+            BindFlags: D3D11_BIND_SHADER_RESOURCE,
             MiscFlags: 0,
             CPUAccessFlags: 0,
         };
