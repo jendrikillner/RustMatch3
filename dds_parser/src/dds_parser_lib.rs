@@ -277,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn test_black_4x4_bc1() {
+    fn validate_texture_header_black_4x4_bc1() {
         let texture_header_ref = D3D11_TEXTURE2D_DESC {
             Width: 4,
             Height: 4,
@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn test_black_4x4_mips_bc1() {
+    fn validate_texture_header_black_4x4_mips_bc1() {
         let texture_header_ref = D3D11_TEXTURE2D_DESC {
             Width: 4,
             Height: 4,
