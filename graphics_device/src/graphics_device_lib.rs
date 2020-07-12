@@ -335,14 +335,10 @@ impl Drop for GraphicsDeviceLayer<'_> {
                 self.device.debug_device,
             );
 
-			// in headless mode a swapchain might not exist
-			if let Some(swapchain) = self.swapchain.as_ref() {
-				leak_check_release(
-					swapchain,
-					0,
-					self.device.debug_device,
-				);
-			}
+            // in headless mode a swapchain might not exist
+            if let Some(swapchain) = self.swapchain.as_ref() {
+                leak_check_release(swapchain, 0, self.device.debug_device);
+            }
         }
     }
 }
@@ -441,29 +437,30 @@ pub fn create_device_graphics_layer_headless<'a>(
             "dxgi_factory QueryInterface failed"
         );
 
-		let texture_desc = D3D11_TEXTURE2D_DESC {
-        Width: 512,
-        Height: 512,
-        MipLevels: 1,
-        ArraySize: 1,
-        Format: DXGI_FORMAT_R8G8B8A8_UNORM,
-        SampleDesc: DXGI_SAMPLE_DESC {
-            Count: 1,
-            Quality: 0,
-        },
-        Usage: D3D11_USAGE_DEFAULT,
-        BindFlags: D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET,
-        MiscFlags: 0,
-        CPUAccessFlags: 0,
-    };
+        let texture_desc = D3D11_TEXTURE2D_DESC {
+            Width: 512,
+            Height: 512,
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+            SampleDesc: DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            Usage: D3D11_USAGE_DEFAULT,
+            BindFlags: D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET,
+            MiscFlags: 0,
+            CPUAccessFlags: 0,
+        };
 
-		let mut backbuffer_texture: *mut ID3D11Texture2D = std::ptr::null_mut();
+        let mut backbuffer_texture: *mut ID3D11Texture2D = std::ptr::null_mut();
 
         // create a texture that we can render to
-		let hr =
-            d3d11_device
-                .as_ref().unwrap()
-                .CreateTexture2D(&texture_desc, std::ptr::null_mut(), &mut backbuffer_texture);
+        let hr = d3d11_device.as_ref().unwrap().CreateTexture2D(
+            &texture_desc,
+            std::ptr::null_mut(),
+            &mut backbuffer_texture,
+        );
 
         if hr != S_OK {
             return Err(());
@@ -504,7 +501,7 @@ pub fn create_device_graphics_layer_headless<'a>(
 
         set_debug_name(command_context.as_ref().unwrap(), "Deferred Context");
 
-		let swapchain: *mut IDXGISwapChain1 = std::ptr::null_mut();
+        let swapchain: *mut IDXGISwapChain1 = std::ptr::null_mut();
 
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
