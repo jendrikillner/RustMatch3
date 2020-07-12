@@ -167,16 +167,38 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     assert!(file_cursor == 128);
 
     // decide if we need to parse the DXT10 header too
-    assert!(dds_header_pixel_format_fourcc != 0x30315844); // DXT10 not yet supported
+	let format = if  dds_header_pixel_format_fourcc == 0x30315844  {
+		// the DXT 10 header is contained in the file
+		
+		let dxgi_format: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+		file_cursor += 4;
 
-    assert!(dds_header_pixel_format_flags & DDPF_FOURCC > 0); // only compressed textures are supported for now
+		let _resource_dimension: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+		file_cursor += 4;
 
-    let format = match dds_header_pixel_format_fourcc {
-        0x31545844 => DXGI_FORMAT_BC1_UNORM,
-        _ => {
-            return Err(DdsParserError::FormatNotSupported);
-        }
-    };
+		let _misc_flag: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+		file_cursor += 4;
+
+		let _array_size: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+		file_cursor += 4;
+
+		let _misc_flags2: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+		file_cursor += 4;
+
+		// don't need to convert these formats
+		// they are already in the expected format
+		dxgi_format
+
+	} else {
+		assert!(dds_header_pixel_format_flags & DDPF_FOURCC > 0); // only compressed textures are supported for now
+
+		match dds_header_pixel_format_fourcc {
+			0x31545844 => DXGI_FORMAT_BC1_UNORM,
+			_ => {
+				return Err(DdsParserError::FormatNotSupported);
+			}
+		}
+	};
 
     let mipmap_count = if dds_header_dw_flags & DDSD_MIPMAPCOUNT > 0 {
         dds_header_dw_mip_map_count
