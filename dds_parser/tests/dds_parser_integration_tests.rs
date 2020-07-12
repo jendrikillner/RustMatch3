@@ -71,3 +71,63 @@ fn load_and_create_nvtt_export_white_4x4_mips_bc1_dxt9() {
 fn load_and_create_nvtt_export_white_4x4_mips_bc1_dxt10() {
     test_texture_load_and_creation("nvtt_export/white_4x4_bc1_mips_dxt10.dds");
 }
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc2_dxt9() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc2_mips_dxt9.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc2_dxt10() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc2_mips_dxt10.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc3_dxt9() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc3_mips_dxt9.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc3_dxt10() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc3_mips_dxt10.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc4_dxt9() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc4_mips_dxt9.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc4_dxt10() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc4_mips_dxt10.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc5_dxt9() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc5_mips_dxt9.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc5_dxt10() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc5_mips_dxt10.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc6_dxt9() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc6_mips_dxt9.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc6_dxt10() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc6_mips_dxt10.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc7_dxt9() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc7_mips_dxt9.dds");
+}
+
+#[test]
+fn load_and_create_nvtt_export_white_4x4_mips_bc7_dxt10() {
+    test_texture_load_and_creation("nvtt_export/white_4x4_bc7_mips_dxt10.dds");
+}
