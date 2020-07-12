@@ -9,7 +9,7 @@ use std::io::Read;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
-    texture: Texture<'a>,
+    _texture: Texture<'a>,
     texture_view: ShaderResourceView<'a>,
     sampler: Sampler<'a>,
 }
@@ -26,10 +26,10 @@ impl GameplayStateStaticData<'_> {
 
         // load the test texture
         let file = std::fs::File::open(
-			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/red_smiley_64x64_bc1.dds",
+			"C:/jendrik/projects/rustmatch3/dds_parser/tests/data/paintnet/black_4x4_mips_bc1.dds",
 		);
         let mut data = Vec::new();
-        let file_read_result_ = file.unwrap().read_to_end(&mut data);
+        let _file_read_result = file.unwrap().read_to_end(&mut data);
 
         // parse the header
         let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
@@ -67,7 +67,7 @@ impl GameplayStateStaticData<'_> {
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
-            texture,
+            _texture: texture,
             texture_view,
             sampler: Sampler {
                 native_sampler: unsafe { sampler.as_mut().unwrap() },
