@@ -210,15 +210,27 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         }
     };
 
-    let line_pitch = std::cmp::max(1, (texture_header_ref.Width + 3) / 4) * block_size;
-    let slice_pitch = line_pitch;
+    // calculate the subresource data for each mip map
 
-    subresources.push(D3D11_SUBRESOURCE_DATA {
-        pSysMem: src_data[file_cursor..(file_cursor + (slice_pitch as usize))].as_ptr()
-            as *const winapi::ctypes::c_void, // todo, calculate this correctly
-        SysMemPitch: line_pitch,
-        SysMemSlicePitch: slice_pitch,
-    });
+    for mip_level in 0..mipmap_count {
+        let mip_level_width = texture_header_ref.Width >> mip_level;
+        let mip_level_height = texture_header_ref.Height >> mip_level;
+
+        let line_pitch = std::cmp::max(1, (mip_level_width + 3) / 4) * block_size;
+        let slice_pitch = line_pitch * std::cmp::max(1, (mip_level_height + 3) / 4);
+
+        subresources.push(D3D11_SUBRESOURCE_DATA {
+            pSysMem: src_data[file_cursor..(file_cursor + (slice_pitch as usize))].as_ptr()
+                as *const winapi::ctypes::c_void, // todo, calculate this correctly
+            SysMemPitch: line_pitch,
+            SysMemSlicePitch: slice_pitch,
+        });
+
+        file_cursor += slice_pitch as usize;
+    }
+
+    // all data needs to be used, otherwise therer was a problem with parsing
+    assert!(file_cursor == src_data.len());
 
     Ok(ParsedTextureData {
         desc: texture_header_ref,
