@@ -4,6 +4,7 @@
 name = "dds_parser"
 version = "0.1.0"
 dependencies = [
+ "graphics_device",
  "winapi",
 ]
 
