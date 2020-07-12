@@ -194,6 +194,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
 
 		match dds_header_pixel_format_fourcc {
 			0x31545844 => DXGI_FORMAT_BC1_UNORM,
+			0x33545844 => DXGI_FORMAT_BC2_UNORM,
 			_ => {
 				return Err(DdsParserError::FormatNotSupported);
 			}
@@ -226,7 +227,13 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     let mut subresources: Vec<D3D11_SUBRESOURCE_DATA> = Vec::new();
 
     let block_size = match format {
-        DXGI_FORMAT_BC1_UNORM => 8,
+        DXGI_FORMAT_BC1_UNORM | DXGI_FORMAT_BC1_UNORM_SRGB | DXGI_FORMAT_BC1_TYPELESS => 8,
+		DXGI_FORMAT_BC2_UNORM | DXGI_FORMAT_BC2_UNORM_SRGB | DXGI_FORMAT_BC2_TYPELESS => 16,
+		DXGI_FORMAT_BC3_UNORM | DXGI_FORMAT_BC3_UNORM_SRGB | DXGI_FORMAT_BC3_TYPELESS => 16,
+		DXGI_FORMAT_BC4_UNORM | DXGI_FORMAT_BC4_SNORM | DXGI_FORMAT_BC4_TYPELESS => 8,
+		DXGI_FORMAT_BC5_UNORM | DXGI_FORMAT_BC5_SNORM | DXGI_FORMAT_BC5_TYPELESS => 16,
+		DXGI_FORMAT_BC6H_UF16 | DXGI_FORMAT_BC6H_SF16 | DXGI_FORMAT_BC6H_TYPELESS => 16,
+		DXGI_FORMAT_BC7_UNORM | DXGI_FORMAT_BC7_UNORM_SRGB | DXGI_FORMAT_BC7_TYPELESS => 16,
         _ => {
             return Err(DdsParserError::FormatNotSupported);
         }
