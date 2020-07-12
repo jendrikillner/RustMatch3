@@ -195,6 +195,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
 		match dds_header_pixel_format_fourcc {
 			0x31545844 => DXGI_FORMAT_BC1_UNORM,
 			0x33545844 => DXGI_FORMAT_BC2_UNORM,
+			0x35545844 => DXGI_FORMAT_BC3_UNORM,
 			_ => {
 				return Err(DdsParserError::FormatNotSupported);
 			}
