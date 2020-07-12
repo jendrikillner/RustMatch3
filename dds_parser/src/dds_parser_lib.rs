@@ -167,40 +167,44 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     assert!(file_cursor == 128);
 
     // decide if we need to parse the DXT10 header too
-	let format = if  dds_header_pixel_format_fourcc == 0x30315844  {
-		// the DXT 10 header is contained in the file
-		
-		let dxgi_format: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
-		file_cursor += 4;
+    let format = if dds_header_pixel_format_fourcc == 0x30315844 {
+        // the DXT 10 header is contained in the file
 
-		let _resource_dimension: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
-		file_cursor += 4;
+        let dxgi_format: u32 =
+            u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+        file_cursor += 4;
 
-		let _misc_flag: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
-		file_cursor += 4;
+        let _resource_dimension: u32 =
+            u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+        file_cursor += 4;
 
-		let _array_size: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
-		file_cursor += 4;
+        let _misc_flag: u32 =
+            u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+        file_cursor += 4;
 
-		let _misc_flags2: u32 = u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
-		file_cursor += 4;
+        let _array_size: u32 =
+            u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+        file_cursor += 4;
 
-		// don't need to convert these formats
-		// they are already in the expected format
-		dxgi_format
+        let _misc_flags2: u32 =
+            u32::from_le_bytes(src_data[file_cursor..(file_cursor + 4)].try_into().unwrap()); // DWORD is 4 bytes long
+        file_cursor += 4;
 
-	} else {
-		assert!(dds_header_pixel_format_flags & DDPF_FOURCC > 0); // only compressed textures are supported for now
+        // don't need to convert these formats
+        // they are already in the expected format
+        dxgi_format
+    } else {
+        assert!(dds_header_pixel_format_flags & DDPF_FOURCC > 0); // only compressed textures are supported for now
 
-		match dds_header_pixel_format_fourcc {
-			0x31545844 => DXGI_FORMAT_BC1_UNORM,
-			0x33545844 => DXGI_FORMAT_BC2_UNORM,
-			0x35545844 => DXGI_FORMAT_BC3_UNORM,
-			_ => {
-				return Err(DdsParserError::FormatNotSupported);
-			}
-		}
-	};
+        match dds_header_pixel_format_fourcc {
+            0x31545844 => DXGI_FORMAT_BC1_UNORM,
+            0x33545844 => DXGI_FORMAT_BC2_UNORM,
+            0x35545844 => DXGI_FORMAT_BC3_UNORM,
+            _ => {
+                return Err(DdsParserError::FormatNotSupported);
+            }
+        }
+    };
 
     let mipmap_count = if dds_header_dw_flags & DDSD_MIPMAPCOUNT > 0 {
         dds_header_dw_mip_map_count
@@ -229,12 +233,12 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
 
     let block_size = match format {
         DXGI_FORMAT_BC1_UNORM | DXGI_FORMAT_BC1_UNORM_SRGB | DXGI_FORMAT_BC1_TYPELESS => 8,
-		DXGI_FORMAT_BC2_UNORM | DXGI_FORMAT_BC2_UNORM_SRGB | DXGI_FORMAT_BC2_TYPELESS => 16,
-		DXGI_FORMAT_BC3_UNORM | DXGI_FORMAT_BC3_UNORM_SRGB | DXGI_FORMAT_BC3_TYPELESS => 16,
-		DXGI_FORMAT_BC4_UNORM | DXGI_FORMAT_BC4_SNORM | DXGI_FORMAT_BC4_TYPELESS => 8,
-		DXGI_FORMAT_BC5_UNORM | DXGI_FORMAT_BC5_SNORM | DXGI_FORMAT_BC5_TYPELESS => 16,
-		DXGI_FORMAT_BC6H_UF16 | DXGI_FORMAT_BC6H_SF16 | DXGI_FORMAT_BC6H_TYPELESS => 16,
-		DXGI_FORMAT_BC7_UNORM | DXGI_FORMAT_BC7_UNORM_SRGB | DXGI_FORMAT_BC7_TYPELESS => 16,
+        DXGI_FORMAT_BC2_UNORM | DXGI_FORMAT_BC2_UNORM_SRGB | DXGI_FORMAT_BC2_TYPELESS => 16,
+        DXGI_FORMAT_BC3_UNORM | DXGI_FORMAT_BC3_UNORM_SRGB | DXGI_FORMAT_BC3_TYPELESS => 16,
+        DXGI_FORMAT_BC4_UNORM | DXGI_FORMAT_BC4_SNORM | DXGI_FORMAT_BC4_TYPELESS => 8,
+        DXGI_FORMAT_BC5_UNORM | DXGI_FORMAT_BC5_SNORM | DXGI_FORMAT_BC5_TYPELESS => 16,
+        DXGI_FORMAT_BC6H_UF16 | DXGI_FORMAT_BC6H_SF16 | DXGI_FORMAT_BC6H_TYPELESS => 16,
+        DXGI_FORMAT_BC7_UNORM | DXGI_FORMAT_BC7_UNORM_SRGB | DXGI_FORMAT_BC7_TYPELESS => 16,
         _ => {
             return Err(DdsParserError::FormatNotSupported);
         }
