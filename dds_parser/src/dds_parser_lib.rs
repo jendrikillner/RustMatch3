@@ -194,13 +194,29 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         // they are already in the expected format
         dxgi_format
     } else {
-        assert!(dds_header_pixel_format_flags & DDPF_FOURCC > 0); // only compressed textures are supported for now
-
-        match dds_header_pixel_format_fourcc {
-            0x31545844 => DXGI_FORMAT_BC1_UNORM,
-            0x33545844 => DXGI_FORMAT_BC2_UNORM,
-            0x35545844 => DXGI_FORMAT_BC3_UNORM,
-            _ => {
+        // compressed texture
+        if (dds_header_pixel_format_flags & DDPF_FOURCC) > 0 {
+            match dds_header_pixel_format_fourcc {
+                0x31545844 => DXGI_FORMAT_BC1_UNORM,
+                0x33545844 => DXGI_FORMAT_BC2_UNORM,
+                0x35545844 => DXGI_FORMAT_BC3_UNORM,
+                _ => {
+                    return Err(DdsParserError::FormatNotSupported);
+                }
+            }
+        } else {
+            // uncompressed textures
+            if _dds_header_pixel_format_rgb_bit_count == 32 {
+                if _dds_header_pixel_format_r_bit_mask == 0x00FF0000
+                    && _dds_header_pixel_format_g_bit_mask == 0x0000FF00
+                    && _dds_header_pixel_format_b_bit_mask == 0x000000FF
+                    && _dds_header_pixel_format_a_bit_mask == 0xff000000
+                {
+                    DXGI_FORMAT_R8G8B8A8_UNORM
+                } else {
+                    return Err(DdsParserError::FormatNotSupported);
+                }
+            } else {
                 return Err(DdsParserError::FormatNotSupported);
             }
         }
@@ -239,6 +255,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         DXGI_FORMAT_BC5_UNORM | DXGI_FORMAT_BC5_SNORM | DXGI_FORMAT_BC5_TYPELESS => 16,
         DXGI_FORMAT_BC6H_UF16 | DXGI_FORMAT_BC6H_SF16 | DXGI_FORMAT_BC6H_TYPELESS => 16,
         DXGI_FORMAT_BC7_UNORM | DXGI_FORMAT_BC7_UNORM_SRGB | DXGI_FORMAT_BC7_TYPELESS => 16,
+        DXGI_FORMAT_R8G8B8A8_UNORM => 1,
         _ => {
             return Err(DdsParserError::FormatNotSupported);
         }
@@ -250,8 +267,20 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         let mip_level_width = texture_header_ref.Width >> mip_level;
         let mip_level_height = texture_header_ref.Height >> mip_level;
 
-        let line_pitch = std::cmp::max(1, (mip_level_width + 3) / 4) * block_size;
-        let slice_pitch = line_pitch * std::cmp::max(1, (mip_level_height + 3) / 4);
+        let (line_pitch, slice_pitch) = if block_size > 1 {
+            let line_pitch = std::cmp::max(1, (mip_level_width + 3) / 4) * block_size;
+            let slice_pitch = line_pitch * std::cmp::max(1, (mip_level_height + 3) / 4);
+            (line_pitch, slice_pitch)
+        } else {
+            // only uncompressed format supported for now
+            assert!(format == DXGI_FORMAT_R8G8B8A8_UNORM);
+
+            let bits_per_pixel = 32;
+            let line_pitch = (mip_level_width * bits_per_pixel + 7) / 8;
+            let slice_pitch = line_pitch * texture_header_ref.Height;
+
+            (line_pitch, slice_pitch)
+        };
 
         subresources.push(D3D11_SUBRESOURCE_DATA {
             pSysMem: src_data[file_cursor..(file_cursor + (slice_pitch as usize))].as_ptr()
