@@ -8,11 +8,20 @@ pub enum DdsParserError {
     InvalidHeader,
     InvalidFlags,
     FormatNotSupported,
+    InvalidDimensions,
 }
 
 pub struct ParsedTextureData {
     pub desc: D3D11_TEXTURE2D_DESC,
     pub subresources_data: Vec<D3D11_SUBRESOURCE_DATA>,
+}
+
+fn is_multiple_of4(value: u32) -> bool {
+    if value % 4 == 0 {
+        true
+    } else {
+        false
+    }
 }
 
 pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserError> {
@@ -221,6 +230,10 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
             }
         }
     };
+
+    if (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false {
+        return Err(DdsParserError::InvalidDimensions);
+    }
 
     let mipmap_count = if dds_header_dw_flags & DDSD_MIPMAPCOUNT > 0 {
         dds_header_dw_mip_map_count
