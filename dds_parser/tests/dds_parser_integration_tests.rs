@@ -37,6 +37,13 @@ fn load_and_create_black_4x4_bc1() {
     test_texture_load_and_creation("paintnet/black_4x4_bc1.dds");
 }
 
+// validate that we receive an InvalidDimensions err value if we try to load a non-power of two texture
+#[test]
+#[should_panic(expected = r#"called `Result::unwrap()` on an `Err` value: InvalidDimensions"#)]
+fn load_and_create_black_5x4_bc1() {
+    test_texture_load_and_creation("paintnet/white_5x4_bc1.dds");
+}
+
 #[test]
 fn load_and_create_white_4x4_mips_bc2() {
     test_texture_load_and_creation("paintnet/white_4x4_bc2_mips.dds");
