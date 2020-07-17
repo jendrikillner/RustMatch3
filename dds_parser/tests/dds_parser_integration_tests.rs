@@ -68,6 +68,11 @@ fn load_and_create_white_4x4_rgba8() {
 }
 
 #[test]
+fn load_and_create_white_5x4_rgba8() {
+    test_texture_load_and_creation("paintnet/white_4x4_rgba8.dds");
+}
+
+#[test]
 fn load_and_create_nvtt_export_white_4x4_mips_bc1_dxt9() {
     test_texture_load_and_creation("nvtt_export/white_4x4_bc1_mips_dxt9.dds");
 }
