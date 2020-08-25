@@ -132,7 +132,6 @@ fn load_and_create_white_4x4_rgba8() {
 }
 
 #[test]
-#[should_panic(expected = r#"called `Result::unwrap()` on an `Err` value: ImageSizeNotMultipleOf4"#)]
 fn load_and_create_white_5x4_rgba8() {
     test_texture_load_and_creation(paintnet::WHITE_5X4_RGBA);
 }

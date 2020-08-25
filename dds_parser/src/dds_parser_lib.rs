@@ -231,7 +231,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         }
     };
 
-    if (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false {
+    if format != DXGI_FORMAT_R8G8B8A8_UNORM && (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false {
         return Err(DdsParserError::ImageSizeNotMultipleOf4);
     }
 
