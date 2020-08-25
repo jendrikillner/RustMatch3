@@ -96,7 +96,7 @@ fn load_and_create_black_4x4_bc1() {
 
 // validate that we receive an InvalidDimensions err value if we try to load a non-power of two texture
 #[test]
-#[should_panic(expected = r#"called `Result::unwrap()` on an `Err` value: InvalidDimensions"#)]
+#[should_panic(expected = r#"called `Result::unwrap()` on an `Err` value: ImageSizeNotMultipleOf4"#)]
 fn load_and_create_black_5x4_bc1() {
     test_texture_load_and_creation(paintnet::WHITE_5X4_BC1);
 }
@@ -132,7 +132,7 @@ fn load_and_create_white_4x4_rgba8() {
 }
 
 #[test]
-#[should_panic(expected = r#"called `Result::unwrap()` on an `Err` value: InvalidDimensions"#)]
+#[should_panic(expected = r#"called `Result::unwrap()` on an `Err` value: ImageSizeNotMultipleOf4"#)]
 fn load_and_create_white_5x4_rgba8() {
     test_texture_load_and_creation(paintnet::WHITE_5X4_RGBA);
 }

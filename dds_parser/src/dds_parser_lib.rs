@@ -8,7 +8,7 @@ pub enum DdsParserError {
     InvalidHeader,
     InvalidFlags,
     FormatNotSupported,
-    InvalidDimensions,
+    ImageSizeNotMultipleOf4,
 }
 
 pub struct ParsedTextureData {
@@ -232,7 +232,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     };
 
     if (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false {
-        return Err(DdsParserError::InvalidDimensions);
+        return Err(DdsParserError::ImageSizeNotMultipleOf4);
     }
 
     let mipmap_count = if dds_header_dw_flags & DDSD_MIPMAPCOUNT > 0 {
