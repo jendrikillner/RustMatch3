@@ -17,7 +17,9 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test-Debug|x64'">
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommand>$(OutputPath)..\debug\match3_game-f5df084a67f1f7a9.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommand>$(OutputPath)..\debug\dds_parser_integration_tests-e2fbc20494ac5933.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test-Release|x64'">
     <LocalDebuggerCommand>$(OutputPath)..\release\match3_game-964f8e044c4d171e.exe</LocalDebuggerCommand>
