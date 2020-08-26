@@ -6,7 +6,7 @@ use winapi::um::d3d11::*;
 #[derive(Debug)]
 pub enum DdsParserError {
     InvalidHeader(& 'static str),
-    InvalidFlags,
+    InvalidFlags(& 'static str),
     FormatNotSupported,
     ImageSizeNotMultipleOf4,
 }
@@ -81,19 +81,19 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     static DDPF_FOURCC: u32 = 0x4;
 
     if dds_header_dw_flags & DDSD_CAPS == 0 {
-        return Err(DdsParserError::InvalidFlags);
+        return Err(DdsParserError::InvalidFlags("missing DDSD_CAPS") );
     }
 
     if dds_header_dw_flags & DDSD_HEIGHT == 0 {
-        return Err(DdsParserError::InvalidFlags);
+        return Err(DdsParserError::InvalidFlags("missing DDSD_HEIGHT"));
     }
 
     if dds_header_dw_flags & DDSD_WIDTH == 0 {
-        return Err(DdsParserError::InvalidFlags);
+        return Err(DdsParserError::InvalidFlags("missing DDSD_WIDTH"));
     }
 
     if dds_header_dw_flags & DDSD_PIXELFORMAT == 0 {
-        return Err(DdsParserError::InvalidFlags);
+        return Err(DdsParserError::InvalidFlags("missing DDSD_PIXELFORMAT"));
     }
 
     let dds_header_dw_height: u32 =
