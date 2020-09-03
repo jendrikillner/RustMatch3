@@ -5,8 +5,8 @@ use winapi::um::d3d11::*;
 
 #[derive(Debug)]
 pub enum DdsParserError {
-    InvalidHeader(& 'static str),
-    InvalidFlags(& 'static str),
+    InvalidHeader(&'static str),
+    InvalidFlags(&'static str),
     FormatNotSupported,
     ImageSizeNotMultipleOf4,
 }
@@ -34,7 +34,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     // a valid DDS file needs at least 128 bytes to srore the DDS dword and the DDS_HEADER
     // if the file is smaller it cannot be a valid file
     if src_data.len() < 128 {
-        return Err(DdsParserError::InvalidHeader("smaller than 128 bytes") );
+        return Err(DdsParserError::InvalidHeader("smaller than 128 bytes"));
     }
 
     let mut file_cursor = 0;
@@ -48,7 +48,9 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     file_cursor += 4;
 
     if dw_magic != 0x2053_4444 {
-        return Err(DdsParserError::InvalidHeader("file is missing DDS DWORD at start of the file") );
+        return Err(DdsParserError::InvalidHeader(
+            "file is missing DDS DWORD at start of the file",
+        ));
     }
 
     // next is the DDS_HEADER
@@ -58,7 +60,9 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     file_cursor += 4;
 
     if dds_header_dw_size != 124 {
-        return Err(DdsParserError::InvalidHeader("DDS_HEADER size is not 124 bytes") );
+        return Err(DdsParserError::InvalidHeader(
+            "DDS_HEADER size is not 124 bytes",
+        ));
     }
 
     let dds_header_dw_flags: u32 =
@@ -81,7 +85,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     static DDPF_FOURCC: u32 = 0x4;
 
     if dds_header_dw_flags & DDSD_CAPS == 0 {
-        return Err(DdsParserError::InvalidFlags("missing DDSD_CAPS") );
+        return Err(DdsParserError::InvalidFlags("missing DDSD_CAPS"));
     }
 
     if dds_header_dw_flags & DDSD_HEIGHT == 0 {
@@ -127,7 +131,9 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     // always needs to be 32 bytes
     // otherwise it's an invalid DDS file
     if dds_header_pixel_format_size != 32 {
-        return Err(DdsParserError::InvalidHeader("dds header pixel format is not 32 bytes") );
+        return Err(DdsParserError::InvalidHeader(
+            "dds header pixel format is not 32 bytes",
+        ));
     }
 
     let dds_header_pixel_format_flags: u32 =
@@ -231,7 +237,9 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         }
     };
 
-    if format != DXGI_FORMAT_R8G8B8A8_UNORM && (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false {
+    if format != DXGI_FORMAT_R8G8B8A8_UNORM
+        && (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false
+    {
         return Err(DdsParserError::ImageSizeNotMultipleOf4);
     }
 

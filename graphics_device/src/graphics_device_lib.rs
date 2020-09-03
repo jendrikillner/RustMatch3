@@ -1,4 +1,3 @@
-use winapi::shared::winerror::S_OK;
 use winapi::shared::dxgi::*;
 use winapi::shared::dxgi1_2::*;
 use winapi::shared::dxgiformat::*;
@@ -6,6 +5,7 @@ use winapi::shared::dxgitype::*;
 use winapi::shared::minwindef::{UINT, ULONG};
 use winapi::shared::ntdef::HRESULT;
 use winapi::shared::windef::HWND;
+use winapi::shared::winerror::S_OK;
 use winapi::um::d3d11::*;
 use winapi::um::d3d11_1::*;
 use winapi::um::d3d11sdklayers::*;
@@ -242,36 +242,44 @@ impl Drop for Texture<'_> {
     }
 }
 
-pub fn create_texture<'a>( device: &GraphicsDevice, texture_desc : D3D11_TEXTURE2D_DESC, subresources_data : Vec<D3D11_SUBRESOURCE_DATA>) -> Result<(Texture<'a>, ShaderResourceView<'a>),()>
-{
+pub fn create_texture<'a>(
+    device: &GraphicsDevice,
+    texture_desc: D3D11_TEXTURE2D_DESC,
+    subresources_data: Vec<D3D11_SUBRESOURCE_DATA>,
+) -> Result<(Texture<'a>, ShaderResourceView<'a>), ()> {
+    let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
+    let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
 
-	let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
-	let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
+    unsafe {
+        let hr =
+            device
+                .native
+                .CreateTexture2D(&texture_desc, subresources_data.as_ptr(), &mut texture);
 
-	unsafe {
-		let hr = device.native.CreateTexture2D(
-			&texture_desc,
-			subresources_data.as_ptr(),
-			&mut texture,
-		);
+        if hr != S_OK {
+            return Err(());
+        }
 
-		if hr != S_OK {
-			return Err( () );
-		}
+        // create a resource view
+        let hr = device.native.CreateShaderResourceView(
+            texture as *mut winapi::um::d3d11::ID3D11Resource,
+            std::ptr::null_mut(),
+            &mut texture_view,
+        );
 
-		// create a resource view
-		let hr = device.native.CreateShaderResourceView(
-			texture as *mut winapi::um::d3d11::ID3D11Resource,
-			std::ptr::null_mut(),
-			&mut texture_view,
-		);
+        if hr != S_OK {
+            return Err(());
+        }
+    }
 
-		if hr != S_OK {
-			return Err( () );
-		}
-	}
-
-	return Ok( ( Texture { native_texture : unsafe{ texture.as_mut().unwrap() } }, ShaderResourceView { native_view : unsafe { texture_view.as_mut().unwrap() } } ) );
+    return Ok((
+        Texture {
+            native_texture: unsafe { texture.as_mut().unwrap() },
+        },
+        ShaderResourceView {
+            native_view: unsafe { texture_view.as_mut().unwrap() },
+        },
+    ));
 }
 
 pub struct Sampler<'a> {
@@ -327,14 +335,10 @@ impl Drop for GraphicsDeviceLayer<'_> {
                 self.device.debug_device,
             );
 
-			// in headless mode a swapchain might not exist
-			if let Some(swapchain) = self.swapchain.as_ref() {
-				leak_check_release(
-					swapchain,
-					0,
-					self.device.debug_device,
-				);
-			}
+            // in headless mode a swapchain might not exist
+            if let Some(swapchain) = self.swapchain.as_ref() {
+                leak_check_release(swapchain, 0, self.device.debug_device);
+            }
         }
     }
 }
@@ -433,29 +437,30 @@ pub fn create_device_graphics_layer_headless<'a>(
             "dxgi_factory QueryInterface failed"
         );
 
-		let texture_desc = D3D11_TEXTURE2D_DESC {
-        Width: 512,
-        Height: 512,
-        MipLevels: 1,
-        ArraySize: 1,
-        Format: DXGI_FORMAT_R8G8B8A8_UNORM,
-        SampleDesc: DXGI_SAMPLE_DESC {
-            Count: 1,
-            Quality: 0,
-        },
-        Usage: D3D11_USAGE_DEFAULT,
-        BindFlags: D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET,
-        MiscFlags: 0,
-        CPUAccessFlags: 0,
-    };
+        let texture_desc = D3D11_TEXTURE2D_DESC {
+            Width: 512,
+            Height: 512,
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+            SampleDesc: DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            Usage: D3D11_USAGE_DEFAULT,
+            BindFlags: D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET,
+            MiscFlags: 0,
+            CPUAccessFlags: 0,
+        };
 
-		let mut backbuffer_texture: *mut ID3D11Texture2D = std::ptr::null_mut();
+        let mut backbuffer_texture: *mut ID3D11Texture2D = std::ptr::null_mut();
 
         // create a texture that we can render to
-		let hr =
-            d3d11_device
-                .as_ref().unwrap()
-                .CreateTexture2D(&texture_desc, std::ptr::null_mut(), &mut backbuffer_texture);
+        let hr = d3d11_device.as_ref().unwrap().CreateTexture2D(
+            &texture_desc,
+            std::ptr::null_mut(),
+            &mut backbuffer_texture,
+        );
 
         if hr != S_OK {
             return Err(());
@@ -496,7 +501,7 @@ pub fn create_device_graphics_layer_headless<'a>(
 
         set_debug_name(command_context.as_ref().unwrap(), "Deferred Context");
 
-		let swapchain: *mut IDXGISwapChain1 = std::ptr::null_mut();
+        let swapchain: *mut IDXGISwapChain1 = std::ptr::null_mut();
 
         Ok(GraphicsDeviceLayer {
             device: GraphicsDevice {
