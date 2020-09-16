@@ -34,3 +34,4 @@ What the final game might look like
 - [Part 11 - Mouse Input](https://www.jendrikillner.com/post/rust-game-part-11/)
 - [Part 12 - Game States](https://www.jendrikillner.com/post/rust-game-part-12/)
 - [Part 13 - Modules](https://www.jendrikillner.com/post/rust-game-part-13/)
+- [Part 14 - DDS Parser](https://www.jendrikillner.com/post/rust-game-part-14/)
