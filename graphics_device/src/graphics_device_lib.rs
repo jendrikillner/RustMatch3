@@ -5,6 +5,7 @@ use winapi::shared::dxgitype::*;
 use winapi::shared::minwindef::{UINT, ULONG};
 use winapi::shared::ntdef::HRESULT;
 use winapi::shared::windef::HWND;
+use winapi::shared::winerror::S_OK;
 use winapi::um::d3d11::*;
 use winapi::um::d3d11_1::*;
 use winapi::um::d3d11sdklayers::*;
@@ -221,6 +222,76 @@ impl Drop for RenderTargetView<'_> {
     }
 }
 
+pub struct ShaderResourceView<'a> {
+    pub native_view: &'a mut winapi::um::d3d11::ID3D11ShaderResourceView,
+}
+
+impl Drop for ShaderResourceView<'_> {
+    fn drop(&mut self) {
+        leak_check_release(self.native_view, 0, None);
+    }
+}
+
+pub struct Texture<'a> {
+    pub native_texture: &'a mut winapi::um::d3d11::ID3D11Texture2D,
+}
+
+impl Drop for Texture<'_> {
+    fn drop(&mut self) {
+        leak_check_release(self.native_texture, 0, None);
+    }
+}
+
+pub fn create_texture<'a>(
+    device: &GraphicsDevice,
+    texture_desc: D3D11_TEXTURE2D_DESC,
+    subresources_data: Vec<D3D11_SUBRESOURCE_DATA>,
+) -> Result<(Texture<'a>, ShaderResourceView<'a>), ()> {
+    let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
+    let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
+
+    unsafe {
+        let hr =
+            device
+                .native
+                .CreateTexture2D(&texture_desc, subresources_data.as_ptr(), &mut texture);
+
+        if hr != S_OK {
+            return Err(());
+        }
+
+        // create a resource view
+        let hr = device.native.CreateShaderResourceView(
+            texture as *mut winapi::um::d3d11::ID3D11Resource,
+            std::ptr::null_mut(),
+            &mut texture_view,
+        );
+
+        if hr != S_OK {
+            return Err(());
+        }
+    }
+
+    return Ok((
+        Texture {
+            native_texture: unsafe { texture.as_mut().unwrap() },
+        },
+        ShaderResourceView {
+            native_view: unsafe { texture_view.as_mut().unwrap() },
+        },
+    ));
+}
+
+pub struct Sampler<'a> {
+    pub native_sampler: &'a mut winapi::um::d3d11::ID3D11SamplerState,
+}
+
+impl Drop for Sampler<'_> {
+    fn drop(&mut self) {
+        leak_check_release(self.native_sampler, 0, None);
+    }
+}
+
 pub struct GraphicsDevice<'a> {
     pub native: &'a mut ID3D11Device,
     pub debug_device: Option<&'a ID3D11Debug>,
@@ -263,12 +334,193 @@ impl Drop for GraphicsDeviceLayer<'_> {
                 0,
                 self.device.debug_device,
             );
-            leak_check_release(
-                self.swapchain.as_ref().unwrap(),
-                0,
-                self.device.debug_device,
+
+            // in headless mode a swapchain might not exist
+            if let Some(swapchain) = self.swapchain.as_ref() {
+                leak_check_release(swapchain, 0, self.device.debug_device);
+            }
+        }
+    }
+}
+
+pub fn create_device_graphics_layer_headless<'a>(
+    enable_debug_device: bool,
+) -> Result<GraphicsDeviceLayer<'a>, ()> {
+    unsafe {
+        // use default adapter
+        let adapter: *mut IDXGIAdapter = std::ptr::null_mut();
+
+        let flags: UINT = if enable_debug_device {
+            D3D11_CREATE_DEVICE_DEBUG
+        } else {
+            0
+        };
+
+        let feature_levels: D3D_FEATURE_LEVEL = D3D_FEATURE_LEVEL_11_0;
+        let num_feature_levels: UINT = 1;
+
+        let mut d3d11_device: *mut ID3D11Device = std::ptr::null_mut();
+        let mut d3d11_immediate_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
+
+        let result: HRESULT = D3D11CreateDevice(
+            adapter,
+            D3D_DRIVER_TYPE_HARDWARE,
+            std::ptr::null_mut(),
+            flags,
+            &feature_levels,
+            num_feature_levels,
+            D3D11_SDK_VERSION,
+            &mut d3d11_device,
+            std::ptr::null_mut(),
+            &mut d3d11_immediate_context,
+        );
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "d3d11 device creation failed"
+        );
+
+        set_debug_name(
+            d3d11_immediate_context.as_ref().unwrap(),
+            "Immediate Context",
+        );
+
+        let mut debug_device: *mut ID3D11Debug = std::ptr::null_mut();
+
+        if enable_debug_device {
+            // get d3d11 debug devuce
+            d3d11_device.as_ref().unwrap().QueryInterface(
+                &ID3D11Debug::uuidof(),
+                &mut debug_device as *mut *mut ID3D11Debug as *mut *mut winapi::ctypes::c_void,
             );
         }
+
+        let mut dxgi_device: *mut IDXGIDevice = std::ptr::null_mut();
+
+        // get dxgi device
+        let result = d3d11_device.as_ref().unwrap().QueryInterface(
+            &IDXGIDevice::uuidof(),
+            &mut dxgi_device as *mut *mut IDXGIDevice as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "QueryInterface failed"
+        );
+
+        let mut dxgi_adapter: *mut IDXGIAdapter = std::ptr::null_mut();
+        let result = dxgi_device.as_ref().unwrap().GetAdapter(&mut dxgi_adapter);
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "GetAdapter failed"
+        );
+
+        let mut dxgi_factory: *mut IDXGIFactory1 = std::ptr::null_mut();
+
+        let result = dxgi_adapter.as_ref().unwrap().GetParent(
+            &IDXGIFactory1::uuidof(),
+            &mut dxgi_factory as *mut *mut IDXGIFactory1 as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(result == winapi::shared::winerror::S_OK, "GetParent failed");
+
+        let mut dxgi_factory_2: *mut IDXGIFactory2 = std::ptr::null_mut();
+
+        let result = dxgi_factory.as_ref().unwrap().QueryInterface(
+            &IDXGIFactory2::uuidof(),
+            &mut dxgi_factory_2 as *mut *mut IDXGIFactory2 as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(
+            result == winapi::shared::winerror::S_OK,
+            "dxgi_factory QueryInterface failed"
+        );
+
+        let texture_desc = D3D11_TEXTURE2D_DESC {
+            Width: 512,
+            Height: 512,
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+            SampleDesc: DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            Usage: D3D11_USAGE_DEFAULT,
+            BindFlags: D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET,
+            MiscFlags: 0,
+            CPUAccessFlags: 0,
+        };
+
+        let mut backbuffer_texture: *mut ID3D11Texture2D = std::ptr::null_mut();
+
+        // create a texture that we can render to
+        let hr = d3d11_device.as_ref().unwrap().CreateTexture2D(
+            &texture_desc,
+            std::ptr::null_mut(),
+            &mut backbuffer_texture,
+        );
+
+        if hr != S_OK {
+            return Err(());
+        }
+
+        let mut backbuffer_rtv: *mut ID3D11RenderTargetView = std::ptr::null_mut();
+
+        // now create a render target view onto the texture
+        d3d11_device.as_ref().unwrap().CreateRenderTargetView(
+            backbuffer_texture as *mut winapi::um::d3d11::ID3D11Resource,
+            std::ptr::null_mut(),
+            &mut backbuffer_rtv,
+        );
+
+        set_debug_name(backbuffer_rtv.as_ref().unwrap(), "Backbuffer RTV");
+
+        let mut command_context: *mut ID3D11DeviceContext = std::ptr::null_mut();
+        let mut command_context1: *mut ID3D11DeviceContext1 = std::ptr::null_mut();
+
+        let error = d3d11_device
+            .as_ref()
+            .unwrap()
+            .CreateDeferredContext(0, &mut command_context);
+
+        assert!(error == winapi::shared::winerror::S_OK);
+
+        command_context.as_ref().unwrap().QueryInterface(
+            &ID3D11DeviceContext1::uuidof(),
+            &mut command_context1 as *mut *mut ID3D11DeviceContext1
+                as *mut *mut winapi::ctypes::c_void,
+        );
+
+        assert!(error == winapi::shared::winerror::S_OK);
+
+        // should keep a ref-count of 1 because they are alternative views onto objects that have another view that is still active
+        leak_check_release(command_context.as_ref().unwrap(), 1, debug_device.as_ref());
+        dxgi_device.as_ref().unwrap().Release();
+
+        set_debug_name(command_context.as_ref().unwrap(), "Deferred Context");
+
+        let swapchain: *mut IDXGISwapChain1 = std::ptr::null_mut();
+
+        Ok(GraphicsDeviceLayer {
+            device: GraphicsDevice {
+                native: d3d11_device.as_mut().unwrap(),
+                debug_device: debug_device.as_ref(),
+            },
+            immediate_context: d3d11_immediate_context,
+            swapchain,
+            backbuffer_texture,
+            backbuffer_rtv: RenderTargetView {
+                native_view: backbuffer_rtv.as_mut().unwrap(),
+                width: 512,
+                height: 512,
+            },
+            graphics_command_list: GraphicsCommandList {
+                command_context: command_context1,
+                phantom: std::marker::PhantomData,
+            },
+        })
     }
 }
 
