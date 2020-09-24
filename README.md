@@ -20,7 +20,7 @@ What the final game might look like
 
 ![Final Game Target](https://www.jendrikillner.com/img/posts/rust-game-series-match3/game_design.png "Final Game Target")
 
- ## Rust Game Series
+## Rust Game Series
 - [Part 1 - Overview](https://www.jendrikillner.com/post/rust-game-part-1/)
 - [Part 2 - Win32 Window](https://www.jendrikillner.com/post/rust-game-part-2/)
 - [Part 3 - Unlock the Message Loop](https://www.jendrikillner.com/post/rust-game-part-3/)
@@ -35,3 +35,7 @@ What the final game might look like
 - [Part 12 - Game States](https://www.jendrikillner.com/post/rust-game-part-12/)
 - [Part 13 - Modules](https://www.jendrikillner.com/post/rust-game-part-13/)
 - [Part 14 - DDS Parser](https://www.jendrikillner.com/post/rust-game-part-14/)
+
+## License
+
+The subset of assets from the [Kawaii Cookie Match-3 Asset Pack](https://monixxy.itch.io/kawaii-cookie-match-3-asset-pack) by Marrie Mei are licensed under a [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/)

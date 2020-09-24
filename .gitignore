@@ -4,6 +4,8 @@
 target/*
 target_vs/*
 /match3_game/target/*
+/match3_game/src_data/textures/KawaiiCookieAssetPack/*
+/match3_game/tmp_data/*
 /match3_game/target_vs/*
 /match3_game/.vs/RustMatch3/v15/.suo
 /match3_game/.vs/RustMatch3/v15/Browse.VC.db
