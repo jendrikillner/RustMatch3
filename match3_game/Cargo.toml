@@ -8,3 +8,4 @@ edition = "2018"
 winapi = { version = "0.3" }
 os_window = { path = "../os_window" }
 graphics_device = { path = "../graphics_device" }
+dds_parser = { path = "../dds_parser" }

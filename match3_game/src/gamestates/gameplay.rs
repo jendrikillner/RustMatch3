@@ -3,9 +3,12 @@ use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
 
 use graphics_device::*;
 use os_window::WindowMessages;
+use std::io::Read;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
+    bg_texture: Texture<'a>,
+    bg_texture_srv: ShaderResourceView<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -18,8 +21,29 @@ impl GameplayStateStaticData<'_> {
             },
         );
 
+        // load the test texture
+        let file = std::fs::File::open(
+            "target_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds",
+        );
+        let mut data = Vec::new();
+        let _file_read_result = file.unwrap().read_to_end(&mut data);
+
+        // parse the header
+        let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
+
+        // let mut sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
+
+        let (texture, texture_view) = create_texture(
+            &device_layer.device,
+            texture_load_result.desc,
+            texture_load_result.subresources_data,
+        )
+        .unwrap();
+
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
+            bg_texture: texture,
+            bg_texture_srv: texture_view,
         }
     }
 }
@@ -172,6 +196,33 @@ pub fn draw_gameplay_state(
     begin_render_pass_and_clear(command_list, color, backbuffer_rtv);
 
     bind_pso(command_list, &static_data.screen_space_quad_opaque_pso);
+
+    // draw the background
+    {
+        bind_texture(command_list, 0, &static_data.bg_texture_srv);
+
+        let obj_alloc = HeapAlloc::new(
+            ScreenSpaceQuadData {
+                color: Float4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    a: 1.0,
+                },
+                scale: Float2 {
+                    x: (540.0 / 540.0),
+                    y: (960.0 / 960.0),
+                },
+                position: Float2 { x: 0.0, y: 0.0 },
+            },
+            gpu_heap_data,
+            gpu_heap_state,
+        );
+
+        bind_constant(command_list, 0, &obj_alloc);
+
+        draw_vertices(command_list, 4);
+    }
 
     for (y, row) in frame_params.grid.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {

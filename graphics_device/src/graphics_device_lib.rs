@@ -909,6 +909,24 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
     }
 }
 
+pub fn bind_texture(
+    command_list: &mut GraphicsCommandList,
+    bind_slot: u32,
+    srv: &ShaderResourceView,
+) {
+    unsafe {
+        let srv_mut: *mut ID3D11ShaderResourceView =
+            (srv.native_view as *const ID3D11ShaderResourceView as u64)
+                as *mut ID3D11ShaderResourceView;
+
+        command_list
+            .command_context
+            .as_ref()
+            .unwrap()
+            .PSSetShaderResources(bind_slot, 1, &srv_mut);
+    }
+}
+
 pub fn bind_constant(
     command_list: &mut GraphicsCommandList,
     bind_slot: u32,

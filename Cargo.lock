@@ -19,6 +19,7 @@ dependencies = [
 name = "match3_game"
 version = "0.1.0"
 dependencies = [
+ "dds_parser",
  "graphics_device",
  "os_window",
  "winapi",
