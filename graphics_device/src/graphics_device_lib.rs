@@ -282,16 +282,6 @@ pub fn create_texture<'a>(
     ));
 }
 
-pub struct Sampler<'a> {
-    pub native_sampler: &'a mut winapi::um::d3d11::ID3D11SamplerState,
-}
-
-impl Drop for Sampler<'_> {
-    fn drop(&mut self) {
-        leak_check_release(self.native_sampler, 0, None);
-    }
-}
-
 pub struct GraphicsDevice<'a> {
     pub native: &'a mut ID3D11Device,
     pub debug_device: Option<&'a ID3D11Debug>,
@@ -737,6 +727,7 @@ pub struct PipelineStateObject<'a> {
     pub vertex_shader: &'a ID3D11VertexShader,
     pub pixel_shader: &'a ID3D11PixelShader,
     pub blend_state: &'a ID3D11BlendState,
+    pub static_samplers: &'a winapi::um::d3d11::ID3D11SamplerState,
 }
 
 impl Drop for PipelineStateObject<'_> {
@@ -744,6 +735,9 @@ impl Drop for PipelineStateObject<'_> {
         leak_check_release(self.vertex_shader, 0, None);
         leak_check_release(self.pixel_shader, 0, None);
         leak_check_release(self.blend_state, 0, None);
+
+		// not leak_check release because when we are creating the same sampler twice the runtime will deduliate it and increment the refcount on the same object instea
+		unsafe{ self.static_samplers.Release(); }
     }
 }
 
@@ -824,11 +818,35 @@ pub fn create_pso<'a>(
     };
 
     assert!(error == winapi::shared::winerror::S_OK);
+    let sampler_desc = winapi::um::d3d11::D3D11_SAMPLER_DESC {
+        Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+        AddressU: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+        AddressV: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+        AddressW: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+        MinLOD: 0.0,
+        MaxLOD: 32.0,
+        MipLODBias: 0.0,
+        MaxAnisotropy: 1,
+        ComparisonFunc: winapi::um::d3d11::D3D11_COMPARISON_NEVER,
+        BorderColor: [1.0, 1.0, 1.0, 1.0],
+    };
+
+    let mut native_sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
+
+    let error: HRESULT = unsafe {
+        // create a sampler
+        device
+            .native
+            .CreateSamplerState(&sampler_desc, &mut native_sampler)
+    };
+
+    assert!(error == winapi::shared::winerror::S_OK);
 
     PipelineStateObject {
         vertex_shader: unsafe { vertex_shader.as_mut().unwrap() },
         pixel_shader: unsafe { pixel_shader.as_mut().unwrap() },
         blend_state: unsafe { blend_state.as_mut().unwrap() },
+        static_samplers: unsafe { native_sampler.as_mut().unwrap() },
     }
 }
 
@@ -906,6 +924,18 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
 
         // and set the correct blending states
         command_context.OMSetBlendState(blend_state_mut, &[0.0; 4], 0xffff_ffff);
+
+        // bind all samplers
+        let sampler_mut: *mut ID3D11SamplerState =
+            pso.static_samplers as *const ID3D11SamplerState as u64 as *mut ID3D11SamplerState;
+
+        let samplers: [*mut winapi::um::d3d11::ID3D11SamplerState; 1] = [sampler_mut];
+
+        command_list
+            .command_context
+            .as_ref()
+            .unwrap()
+            .PSSetSamplers(0, 1, samplers.as_ptr());
     }
 }
 
