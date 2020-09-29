@@ -138,7 +138,11 @@ fn main() {
 
         accumulator = dt;
 
-        execute_possible_state_transition(next_game_state, &mut game_state_stack, &graphics_layer);
+        execute_possible_state_transition(
+            next_game_state,
+            &mut game_state_stack,
+            &graphics_layer.device,
+        );
         next_game_state = GameStateTransitionState::Unchanged;
 
         if game_state_stack.is_empty() {

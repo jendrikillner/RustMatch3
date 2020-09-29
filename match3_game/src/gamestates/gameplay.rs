@@ -3,7 +3,6 @@ use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
 
 use graphics_device::*;
 use os_window::WindowMessages;
-use std::io::Read;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
@@ -11,31 +10,18 @@ pub struct GameplayStateStaticData<'a> {
 }
 
 impl GameplayStateStaticData<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> GameplayStateStaticData<'a> {
+    pub fn new<'a>(device: &'a GraphicsDevice) -> GameplayStateStaticData<'a> {
         let screen_space_quad_opaque_pso: PipelineStateObject = create_pso(
-            &device_layer.device,
+            device,
             PipelineStateObjectDesc {
                 shader_name: "target_data/shaders/screen_space_quad",
                 premultiplied_alpha: false,
             },
         );
 
-        // load the test texture
-        let file = std::fs::File::open(
+        let texture = load_dds_from_file(
             "target_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds",
-        );
-        let mut data = Vec::new();
-        let _file_read_result = file.unwrap().read_to_end(&mut data);
-
-        // parse the header
-        let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
-
-        // let mut sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
-
-        let texture = create_texture(
-            &device_layer.device,
-            texture_load_result.desc,
-            texture_load_result.subresources_data,
+            device,
         )
         .unwrap();
 
@@ -71,9 +57,9 @@ impl GameplayStateFrameData {
 }
 
 impl GameplayState<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> GameplayState<'a> {
+    pub fn new<'a>(device: &'a GraphicsDevice) -> GameplayState<'a> {
         GameplayState {
-            static_data: GameplayStateStaticData::new(device_layer),
+            static_data: GameplayStateStaticData::new(device),
             frame_data0: GameplayStateFrameData::new(),
             frame_data1: GameplayStateFrameData::new(),
         }

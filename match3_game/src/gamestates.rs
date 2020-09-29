@@ -6,7 +6,7 @@ use crate::gamestates::gameplay::{update_gameplay_state, GameplayState};
 use crate::gamestates::pause::draw_pause_state;
 use crate::gamestates::pause::{update_pause_state, PauseState};
 use graphics_device::GraphicsCommandList;
-use graphics_device::GraphicsDeviceLayer;
+use graphics_device::GraphicsDevice;
 use graphics_device::LinearAllocatorState;
 use graphics_device::MappedGpuData;
 use graphics_device::RenderTargetView;
@@ -38,20 +38,20 @@ pub enum GameStateTransitionState {
     ReturnToPreviousState,
 }
 
-pub fn execute_possible_state_transition(
+pub fn execute_possible_state_transition<'a>(
     state_transition: GameStateTransitionState,
-    game_state_stack: &mut Vec<GameStateData>,
-    graphics_layer: &GraphicsDeviceLayer,
+    game_state_stack: &mut Vec<GameStateData<'a>>,
+    graphics_device: &'a GraphicsDevice,
 ) {
     // we are starting a new frame, do we need to transition to a new state?
     match state_transition {
         GameStateTransitionState::TransitionToNewState(x) => match x {
             GameStateType::Gameplay => {
-                game_state_stack.push(GameStateData::Gameplay(GameplayState::new(&graphics_layer)));
+                game_state_stack.push(GameStateData::Gameplay(GameplayState::new(graphics_device)));
             }
 
             GameStateType::Pause => {
-                game_state_stack.push(GameStateData::Pause(PauseState::new(&graphics_layer)));
+                game_state_stack.push(GameStateData::Pause(PauseState::new(graphics_device)));
             }
         },
 

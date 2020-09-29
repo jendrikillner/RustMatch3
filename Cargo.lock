@@ -12,6 +12,7 @@ dependencies = [
 name = "graphics_device"
 version = "0.1.0"
 dependencies = [
+ "dds_parser",
  "winapi",
 ]
 

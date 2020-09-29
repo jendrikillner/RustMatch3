@@ -1,3 +1,4 @@
+use std::io::Read;
 use winapi::shared::dxgi::*;
 use winapi::shared::dxgi1_2::*;
 use winapi::shared::dxgiformat::*;
@@ -279,6 +280,25 @@ pub fn create_texture<'a>(
             native_view: unsafe { texture_view.as_mut().unwrap() },
         },
     });
+}
+
+pub fn load_dds_from_file<'a>(
+    filename: &str,
+    device: &'a GraphicsDevice,
+) -> Result<Texture<'a>, ()> {
+    // load the test texture
+    let file = std::fs::File::open(filename);
+    let mut data = Vec::new();
+    let _file_read_result = file.unwrap().read_to_end(&mut data);
+
+    // parse the header
+    let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
+
+    return create_texture(
+        device,
+        texture_load_result.desc,
+        texture_load_result.subresources_data,
+    );
 }
 
 pub struct GraphicsDevice<'a> {

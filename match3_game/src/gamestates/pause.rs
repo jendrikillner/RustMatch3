@@ -10,9 +10,9 @@ pub struct PauseStateStaticData<'a> {
 }
 
 impl PauseStateStaticData<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseStateStaticData<'a> {
+    pub fn new<'a>(device: &GraphicsDevice) -> PauseStateStaticData<'a> {
         let screen_space_quad_blended_pso: PipelineStateObject = create_pso(
-            &device_layer.device,
+            device,
             PipelineStateObjectDesc {
                 shader_name: "target_data/shaders/screen_space_quad",
                 premultiplied_alpha: true,
@@ -44,9 +44,9 @@ pub struct PauseState<'a> {
 }
 
 impl PauseState<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseState<'a> {
+    pub fn new<'a>(device: &GraphicsDevice) -> PauseState<'a> {
         PauseState {
-            static_data: PauseStateStaticData::new(&device_layer),
+            static_data: PauseStateStaticData::new(device),
             frame_data0: PauseStateFrameData::new(),
             frame_data1: PauseStateFrameData::new(),
         }
