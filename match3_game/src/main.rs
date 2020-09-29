@@ -88,7 +88,7 @@ fn main() {
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
-                1024 * 8,
+                1024 * 64,
                 "Frame 0 Constants",
             ),
         },
@@ -98,7 +98,7 @@ fn main() {
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
-                1024 * 8,
+                1024 * 64,
                 "Frame 1 Constants",
             ),
         },
