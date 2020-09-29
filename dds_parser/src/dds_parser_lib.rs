@@ -237,7 +237,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         }
     };
 
-    if format != DXGI_FORMAT_R8G8B8A8_UNORM
+    if (format != DXGI_FORMAT_R8G8B8A8_UNORM && format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
         && (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false
     {
         return Err(DdsParserError::ImageSizeNotMultipleOf4);
@@ -276,7 +276,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         DXGI_FORMAT_BC5_UNORM | DXGI_FORMAT_BC5_SNORM | DXGI_FORMAT_BC5_TYPELESS => 16,
         DXGI_FORMAT_BC6H_UF16 | DXGI_FORMAT_BC6H_SF16 | DXGI_FORMAT_BC6H_TYPELESS => 16,
         DXGI_FORMAT_BC7_UNORM | DXGI_FORMAT_BC7_UNORM_SRGB | DXGI_FORMAT_BC7_TYPELESS => 16,
-        DXGI_FORMAT_R8G8B8A8_UNORM => 1,
+        DXGI_FORMAT_R8G8B8A8_UNORM | DXGI_FORMAT_R8G8B8A8_UNORM_SRGB => 1,
         _ => {
             return Err(DdsParserError::FormatNotSupported);
         }
@@ -294,7 +294,9 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
             (line_pitch, slice_pitch)
         } else {
             // only uncompressed format supported for now
-            assert!(format == DXGI_FORMAT_R8G8B8A8_UNORM);
+            assert!(
+                format == DXGI_FORMAT_R8G8B8A8_UNORM || format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+            );
 
             let bits_per_pixel = 32;
             let line_pitch = (mip_level_width * bits_per_pixel + 7) / 8;
