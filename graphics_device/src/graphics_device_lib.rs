@@ -234,6 +234,7 @@ impl Drop for ShaderResourceView<'_> {
 
 pub struct Texture<'a> {
     pub native_texture: &'a mut winapi::um::d3d11::ID3D11Texture2D,
+    pub srv: ShaderResourceView<'a>,
 }
 
 impl Drop for Texture<'_> {
@@ -246,7 +247,7 @@ pub fn create_texture<'a>(
     device: &GraphicsDevice,
     texture_desc: D3D11_TEXTURE2D_DESC,
     subresources_data: Vec<D3D11_SUBRESOURCE_DATA>,
-) -> Result<(Texture<'a>, ShaderResourceView<'a>), ()> {
+) -> Result<Texture<'a>, ()> {
     let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
     let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
 
@@ -272,14 +273,12 @@ pub fn create_texture<'a>(
         }
     }
 
-    return Ok((
-        Texture {
-            native_texture: unsafe { texture.as_mut().unwrap() },
-        },
-        ShaderResourceView {
+    return Ok(Texture {
+        native_texture: unsafe { texture.as_mut().unwrap() },
+        srv: ShaderResourceView {
             native_view: unsafe { texture_view.as_mut().unwrap() },
         },
-    ));
+    });
 }
 
 pub struct GraphicsDevice<'a> {
@@ -736,8 +735,10 @@ impl Drop for PipelineStateObject<'_> {
         leak_check_release(self.pixel_shader, 0, None);
         leak_check_release(self.blend_state, 0, None);
 
-		// not leak_check release because when we are creating the same sampler twice the runtime will deduliate it and increment the refcount on the same object instea
-		unsafe{ self.static_samplers.Release(); }
+        // not leak_check release because when we are creating the same sampler twice the runtime will deduliate it and increment the refcount on the same object instea
+        unsafe {
+            self.static_samplers.Release();
+        }
     }
 }
 

@@ -8,7 +8,6 @@ use std::io::Read;
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
     bg_texture: Texture<'a>,
-    bg_texture_srv: ShaderResourceView<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -33,7 +32,7 @@ impl GameplayStateStaticData<'_> {
 
         // let mut sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
 
-        let (texture, texture_view) = create_texture(
+        let texture = create_texture(
             &device_layer.device,
             texture_load_result.desc,
             texture_load_result.subresources_data,
@@ -43,7 +42,6 @@ impl GameplayStateStaticData<'_> {
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
             bg_texture: texture,
-            bg_texture_srv: texture_view,
         }
     }
 }
@@ -199,7 +197,7 @@ pub fn draw_gameplay_state(
 
     // draw the background
     {
-        bind_texture(command_list, 0, &static_data.bg_texture_srv);
+        bind_texture(command_list, 0, &static_data.bg_texture.srv);
 
         let obj_alloc = HeapAlloc::new(
             ScreenSpaceQuadData {
