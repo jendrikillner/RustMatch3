@@ -13,7 +13,10 @@ rule convert_to_dds_bc1
   command = ../build_environment/nvtt_export/nvtt_export.exe --format bc1 --no-mips --output $out $in
 
 rule convert_to_dds_rgba8
-  command = ../build_environment/nvtt_export/nvtt_export.exe --format bc1 --no-mips --output $out $in
+  command = ../build_environment/directxtex/texconv.exe -f R8G8B8A8_UNORM_SRGB -m 1 -y -o ../ $in 
+
+rule copy_file
+  command = ../build_environment/copy_file.exe $in $out
 
 # export from SVG to PNG
 build tmp_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.png: export_svg src_data/textures/KawaiiCookieAssetPack/SVGs/hud-pieces.svg
@@ -29,7 +32,15 @@ build tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.png: expo
     export_id = g7416
 
 # convert the PNG files into dds file that we can load at runtime
-build target_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds: convert_to_dds_bc1   tmp_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.png
-build target_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds:   convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.png
-build target_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds:      convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_top_border.png
-build target_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds: convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.png
+build tmp_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds: convert_to_dds_bc1   tmp_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.png
+build tmp_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds:   convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.png
+build tmp_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds:      convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_top_border.png
+build tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds: convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.png
+
+# copy the files into the final destinationcopy_file
+build target_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds: copy_file   tmp_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds
+build target_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds: copy_file   tmp_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds
+build target_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds: copy_file   tmp_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds
+build target_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds: copy_file   tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds
+
+# dont remove the empty line below
