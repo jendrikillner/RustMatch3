@@ -16,7 +16,7 @@ impl GameplayStateStaticData<'_> {
             device,
             PipelineStateObjectDesc {
                 shader_name: "target_data/shaders/screen_space_quad",
-                premultiplied_alpha: false,
+                premultiplied_alpha: true,
             },
         );
 

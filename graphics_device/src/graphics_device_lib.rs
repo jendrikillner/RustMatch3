@@ -753,11 +753,11 @@ impl Drop for PipelineStateObject<'_> {
     fn drop(&mut self) {
         leak_check_release(self.vertex_shader, 0, None);
         leak_check_release(self.pixel_shader, 0, None);
-        leak_check_release(self.blend_state, 0, None);
 
         // not leak_check release because when we are creating the same sampler twice the runtime will deduliate it and increment the refcount on the same object instea
         unsafe {
             self.static_samplers.Release();
+			self.blend_state.Release();
         }
     }
 }
