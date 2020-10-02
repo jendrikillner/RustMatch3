@@ -757,7 +757,7 @@ impl Drop for PipelineStateObject<'_> {
         // not leak_check release because when we are creating the same sampler twice the runtime will deduliate it and increment the refcount on the same object instea
         unsafe {
             self.static_samplers.Release();
-			self.blend_state.Release();
+            self.blend_state.Release();
         }
     }
 }

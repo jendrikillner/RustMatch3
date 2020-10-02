@@ -8,6 +8,7 @@ pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
     bg_texture: Texture<'a>,
     border_top_texture: Texture<'a>,
+    border_bottom_texture: Texture<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -32,10 +33,17 @@ impl GameplayStateStaticData<'_> {
         )
         .unwrap();
 
+        let texture_border_bottom = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds",
+            device,
+        )
+        .unwrap();
+
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
             bg_texture: texture_bg,
             border_top_texture: texture_border_top,
+            border_bottom_texture: texture_border_bottom,
         }
     }
 }
@@ -234,6 +242,35 @@ pub fn draw_gameplay_state(
                 position: Float2 {
                     x: 0.0,
                     y: 1.0 - (184.0 / 960.0),
+                },
+            },
+            gpu_heap_data,
+            gpu_heap_state,
+        );
+
+        bind_constant(command_list, 0, &obj_alloc);
+
+        draw_vertices(command_list, 4);
+    }
+
+    {
+        bind_texture(command_list, 0, &static_data.border_bottom_texture.srv);
+
+        let obj_alloc = HeapAlloc::new(
+            ScreenSpaceQuadData {
+                color: Float4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    a: 1.0,
+                },
+                scale: Float2 {
+                    x: (540.0 / 540.0),
+                    y: (184.0 / 960.0),
+                },
+                position: Float2 {
+                    x: 0.0,
+                    y: -1.0 + (184.0 / 960.0),
                 },
             },
             gpu_heap_data,
