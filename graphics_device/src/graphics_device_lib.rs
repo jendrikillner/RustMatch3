@@ -840,7 +840,7 @@ pub fn create_pso<'a>(
 
     assert!(error == winapi::shared::winerror::S_OK);
     let sampler_desc = winapi::um::d3d11::D3D11_SAMPLER_DESC {
-        Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+        Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_POINT,
         AddressU: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
         AddressV: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
         AddressW: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,

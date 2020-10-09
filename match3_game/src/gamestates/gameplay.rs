@@ -9,6 +9,7 @@ pub struct GameplayStateStaticData<'a> {
     bg_texture: Texture<'a>,
     border_top_texture: Texture<'a>,
     border_bottom_texture: Texture<'a>,
+    texture_item_background: Texture<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -39,11 +40,18 @@ impl GameplayStateStaticData<'_> {
         )
         .unwrap();
 
+        let texture_item_background = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds",
+            device,
+        )
+        .unwrap();
+
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
             bg_texture: texture_bg,
             border_top_texture: texture_border_top,
             border_bottom_texture: texture_border_bottom,
+            texture_item_background,
         }
     }
 }
@@ -270,7 +278,7 @@ pub fn draw_gameplay_state(
                 },
                 position: Float2 {
                     x: 0.0,
-                    y: -1.0 + (184.0 / 960.0),
+                    y: -1.0 + (100.0 / 960.0),
                 },
             },
             gpu_heap_data,
@@ -281,6 +289,8 @@ pub fn draw_gameplay_state(
 
         draw_vertices(command_list, 4);
     }
+
+    bind_texture(command_list, 0, &static_data.texture_item_background.srv);
 
     for (y, row) in frame_params.grid.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {
@@ -293,8 +303,8 @@ pub fn draw_gameplay_state(
                     color: if !column {
                         Float4 {
                             x: 1.0,
-                            y: 0.0,
-                            z: 0.0,
+                            y: 1.0,
+                            z: 1.0,
                             a: 1.0,
                         }
                     } else {
@@ -311,7 +321,7 @@ pub fn draw_gameplay_state(
                     },
                     position: Float2 {
                         x: (90.0 / 540.0) * -4.0 + x_offset_in_pixels / 540.0,
-                        y: (90.0 / 960.0) * 6.0 - y_offset_in_pixels / 960.0,
+                        y: (80.0 / 960.0) * 6.0 - y_offset_in_pixels / 960.0,
                     },
                 },
                 gpu_heap_data,
