@@ -43,6 +43,8 @@ build target_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds: cop
 build target_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds: copy_file   tmp_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds
 build target_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds: copy_file   tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds
 
+build target_data/textures/engine/black_white_grid_64x64.dds: copy_file src_data/textures/engine/black_white_grid_64x64.dds
+
 # build other files directly to 
 build target_data/textures/engine/white.dds: convert_to_dds_bc1   src_data/textures/engine/white.png
 
