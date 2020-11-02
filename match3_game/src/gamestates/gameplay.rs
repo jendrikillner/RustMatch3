@@ -1,4 +1,6 @@
 use super::{GameStateTransitionState, GameStateType, UpdateBehaviourDesc};
+use crate::GameSpaceQuadData;
+use crate::Int2;
 use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
 
 use graphics_device::*;
@@ -6,6 +8,7 @@ use os_window::WindowMessages;
 
 pub struct GameplayStateStaticData<'a> {
     screen_space_quad_opaque_pso: PipelineStateObject<'a>,
+    game_space_quad_opaque_pso: PipelineStateObject<'a>,
     bg_texture: Texture<'a>,
     border_top_texture: Texture<'a>,
     border_bottom_texture: Texture<'a>,
@@ -18,6 +21,14 @@ impl GameplayStateStaticData<'_> {
             device,
             PipelineStateObjectDesc {
                 shader_name: "target_data/shaders/screen_space_quad",
+                premultiplied_alpha: true,
+            },
+        );
+
+        let game_space_quad_opaque_pso: PipelineStateObject = create_pso(
+            device,
+            PipelineStateObjectDesc {
+                shader_name: "target_data/shaders/game_space_quad",
                 premultiplied_alpha: true,
             },
         );
@@ -48,6 +59,7 @@ impl GameplayStateStaticData<'_> {
 
         GameplayStateStaticData {
             screen_space_quad_opaque_pso,
+            game_space_quad_opaque_pso,
             bg_texture: texture_bg,
             border_top_texture: texture_border_top,
             border_bottom_texture: texture_border_bottom,
@@ -203,25 +215,22 @@ pub fn draw_gameplay_state(
 
     begin_render_pass_and_clear(command_list, color, backbuffer_rtv);
 
-    bind_pso(command_list, &static_data.screen_space_quad_opaque_pso);
+    bind_pso(command_list, &static_data.game_space_quad_opaque_pso);
 
     // draw the background
     {
         bind_texture(command_list, 0, &static_data.bg_texture.srv);
 
         let obj_alloc = HeapAlloc::new(
-            ScreenSpaceQuadData {
+            GameSpaceQuadData {
                 color: Float4 {
                     x: 1.0,
                     y: 1.0,
                     z: 1.0,
                     a: 1.0,
                 },
-                scale: Float2 {
-                    x: (540.0 / 540.0),
-                    y: (960.0 / 960.0),
-                },
-                position: Float2 { x: 0.0, y: 0.0 },
+                size_pixels: Int2 { x: 540, y: 960 },
+                position_bottom_left: Int2 { x: 0, y: 0 },
             },
             gpu_heap_data,
             gpu_heap_state,
@@ -231,6 +240,8 @@ pub fn draw_gameplay_state(
 
         draw_vertices(command_list, 4);
     }
+
+    bind_pso(command_list, &static_data.screen_space_quad_opaque_pso);
 
     {
         bind_texture(command_list, 0, &static_data.border_top_texture.srv);

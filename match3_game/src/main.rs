@@ -25,10 +25,23 @@ struct Float2 {
 }
 
 #[repr(C)]
+struct Int2 {
+    x: i32,
+    y: i32,
+}
+
+#[repr(C)]
 struct ScreenSpaceQuadData {
     color: Float4,
     scale: Float2,
     position: Float2,
+}
+
+#[repr(C)]
+struct GameSpaceQuadData {
+    color: Float4,
+    size_pixels: Int2,
+    position_bottom_left: Int2,
 }
 
 struct CpuRenderFrameData {
