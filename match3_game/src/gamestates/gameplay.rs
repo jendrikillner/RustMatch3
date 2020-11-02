@@ -301,16 +301,17 @@ pub fn draw_gameplay_state(
         draw_vertices(command_list, 4);
     }
 
+    bind_pso(command_list, &static_data.game_space_quad_opaque_pso);
     bind_texture(command_list, 0, &static_data.texture_item_background.srv);
 
     for (y, row) in frame_params.grid.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {
-            let x_offset_in_pixels = (x as f32) * 180.0;
-            let y_offset_in_pixels = (y as f32) * 180.0;
+            let x_offset_in_pixels = (x * 91) as i32;
+            let y_offset_in_pixels = (y * 91) as i32;
 
             // allocate the constants for this draw call
             let obj_alloc = HeapAlloc::new(
-                ScreenSpaceQuadData {
+                GameSpaceQuadData {
                     color: if !column {
                         Float4 {
                             x: 1.0,
@@ -326,13 +327,10 @@ pub fn draw_gameplay_state(
                             a: 1.0,
                         }
                     },
-                    scale: Float2 {
-                        x: (90.0 / 540.0),
-                        y: (90.0 / 960.0),
-                    },
-                    position: Float2 {
-                        x: (90.0 / 540.0) * -4.0 + x_offset_in_pixels / 540.0,
-                        y: (80.0 / 960.0) * 6.0 - y_offset_in_pixels / 960.0,
+                    size_pixels: Int2 { x: 90, y: 90 },
+                    position_bottom_left: Int2 {
+                        x: 45 + x_offset_in_pixels,
+                        y: 960 - 360 + 45 - y_offset_in_pixels,
                     },
                 },
                 gpu_heap_data,
