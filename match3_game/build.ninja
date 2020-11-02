@@ -1,0 +1,5 @@
+ninja_required_version = 1.6
+
+subninja src_data\textures.ninja
+subninja src_data\shaders.ninja
+

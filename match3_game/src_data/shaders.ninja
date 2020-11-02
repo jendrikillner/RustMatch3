@@ -1,0 +1,17 @@
+ninja_required_version = 1.1
+
+builddir=../target/
+
+rule compile_vs_shader
+  command = ..\build_environment\microsoft\fxc\fxc.exe /T vs_4_0 $in /EVS_main /Fo $out
+
+rule compile_ps_shader
+  command = ..\build_environment\microsoft\fxc\fxc.exe /T ps_4_0 $in /EPS_main /Fo $out
+
+build target_data\shaders\screen_space_quad.vsb: compile_vs_shader src_data\shaders\screen_space_quad.hlsl
+build target_data\shaders\screen_space_quad.psb: compile_ps_shader src_data\shaders\screen_space_quad.hlsl
+
+build target_data\shaders\game_space_quad.vsb: compile_vs_shader src_data\shaders\game_space_quad.hlsl
+build target_data\shaders\game_space_quad.psb: compile_ps_shader src_data\shaders\game_space_quad.hlsl
+
+# dont remove the empty line below
