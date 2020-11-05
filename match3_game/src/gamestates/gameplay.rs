@@ -306,7 +306,7 @@ pub fn draw_gameplay_state(
                     size_pixels: Int2 { x: 90, y: 90 },
                     position_bottom_left: Int2 {
                         x: 45 + x_offset_in_pixels,
-                        y: 960 - 360 + 45 - y_offset_in_pixels,
+                        y: 960 - 330 + 45 - y_offset_in_pixels,
                     },
                 },
                 gpu_heap_data,
