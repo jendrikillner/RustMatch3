@@ -1,4 +1,3 @@
-use std::io::Read;
 use winapi::shared::dxgi::*;
 use winapi::shared::dxgi1_2::*;
 use winapi::shared::dxgiformat::*;
@@ -286,10 +285,8 @@ pub fn load_dds_from_file<'a>(
     filename: &str,
     device: &'a GraphicsDevice,
 ) -> Result<Texture<'a>, ()> {
-    // load the test texture
-    let file = std::fs::File::open(filename);
-    let mut data = Vec::new();
-    let _file_read_result = file.unwrap().read_to_end(&mut data);
+    // load the texture data
+    let data = std::fs::read(filename).unwrap();
 
     // parse the header
     let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
