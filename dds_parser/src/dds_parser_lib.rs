@@ -17,11 +17,7 @@ pub struct ParsedTextureData {
 }
 
 fn is_multiple_of4(value: u32) -> bool {
-    if value % 4 == 0 {
-        true
-    } else {
-        false
-    }
+    value % 4 == 0
 }
 
 pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserError> {
@@ -182,7 +178,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     assert!(file_cursor == 128);
 
     // decide if we need to parse the DXT10 header too
-    let format = if dds_header_pixel_format_fourcc == 0x30315844 {
+    let format = if dds_header_pixel_format_fourcc == 0x3031_5844 {
         // the DXT 10 header is contained in the file
 
         let dxgi_format: u32 =
@@ -212,9 +208,9 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         // compressed texture
         if (dds_header_pixel_format_flags & DDPF_FOURCC) > 0 {
             match dds_header_pixel_format_fourcc {
-                0x31545844 => DXGI_FORMAT_BC1_UNORM,
-                0x33545844 => DXGI_FORMAT_BC2_UNORM,
-                0x35545844 => DXGI_FORMAT_BC3_UNORM,
+                0x3154_5844 => DXGI_FORMAT_BC1_UNORM,
+                0x3354_5844 => DXGI_FORMAT_BC2_UNORM,
+                0x3554_5844 => DXGI_FORMAT_BC3_UNORM,
                 _ => {
                     return Err(DdsParserError::FormatNotSupported);
                 }
@@ -222,10 +218,10 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
         } else {
             // uncompressed textures
             if _dds_header_pixel_format_rgb_bit_count == 32 {
-                if _dds_header_pixel_format_r_bit_mask == 0x00FF0000
-                    && _dds_header_pixel_format_g_bit_mask == 0x0000FF00
-                    && _dds_header_pixel_format_b_bit_mask == 0x000000FF
-                    && _dds_header_pixel_format_a_bit_mask == 0xff000000
+                if _dds_header_pixel_format_r_bit_mask == 0x00FF_0000
+                    && _dds_header_pixel_format_g_bit_mask == 0x0000_FF00
+                    && _dds_header_pixel_format_b_bit_mask == 0x0000_00FF
+                    && _dds_header_pixel_format_a_bit_mask == 0xff00_0000
                 {
                     DXGI_FORMAT_R8G8B8A8_UNORM
                 } else {
@@ -238,7 +234,7 @@ pub fn parse_dds_header(src_data: &[u8]) -> Result<ParsedTextureData, DdsParserE
     };
 
     if (format != DXGI_FORMAT_R8G8B8A8_UNORM && format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
-        && (is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height)) == false
+        && !(is_multiple_of4(dds_header_dw_width) && is_multiple_of4(dds_header_dw_height))
     {
         return Err(DdsParserError::ImageSizeNotMultipleOf4);
     }

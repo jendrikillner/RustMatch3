@@ -274,12 +274,12 @@ pub fn create_texture<'a>(
         }
     }
 
-    return Ok(Texture {
+    Ok(Texture {
         native_texture: unsafe { texture.as_mut().unwrap() },
         srv: ShaderResourceView {
             native_view: unsafe { texture_view.as_mut().unwrap() },
         },
-    });
+    })
 }
 
 pub fn load_dds_from_file<'a>(
@@ -294,11 +294,11 @@ pub fn load_dds_from_file<'a>(
     // parse the header
     let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
 
-    return create_texture(
+    create_texture(
         device,
         texture_load_result.desc,
         texture_load_result.subresources_data,
-    );
+    )
 }
 
 pub struct GraphicsDevice<'a> {
