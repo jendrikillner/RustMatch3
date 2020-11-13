@@ -234,6 +234,7 @@ impl Drop for ShaderResourceView<'_> {
 
 pub struct Texture<'a> {
     pub native_texture: &'a mut winapi::um::d3d11::ID3D11Texture2D,
+    pub srv: ShaderResourceView<'a>,
 }
 
 impl Drop for Texture<'_> {
@@ -246,7 +247,7 @@ pub fn create_texture<'a>(
     device: &GraphicsDevice,
     texture_desc: D3D11_TEXTURE2D_DESC,
     subresources_data: Vec<D3D11_SUBRESOURCE_DATA>,
-) -> Result<(Texture<'a>, ShaderResourceView<'a>), ()> {
+) -> Result<Texture<'a>, ()> {
     let mut texture: *mut winapi::um::d3d11::ID3D11Texture2D = std::ptr::null_mut();
     let mut texture_view: *mut winapi::um::d3d11::ID3D11ShaderResourceView = std::ptr::null_mut();
 
@@ -272,24 +273,29 @@ pub fn create_texture<'a>(
         }
     }
 
-    return Ok((
-        Texture {
-            native_texture: unsafe { texture.as_mut().unwrap() },
-        },
-        ShaderResourceView {
+    Ok(Texture {
+        native_texture: unsafe { texture.as_mut().unwrap() },
+        srv: ShaderResourceView {
             native_view: unsafe { texture_view.as_mut().unwrap() },
         },
-    ));
+    })
 }
 
-pub struct Sampler<'a> {
-    pub native_sampler: &'a mut winapi::um::d3d11::ID3D11SamplerState,
-}
+pub fn load_dds_from_file<'a>(
+    filename: &str,
+    device: &'a GraphicsDevice,
+) -> Result<Texture<'a>, ()> {
+    // load the texture data
+    let data = std::fs::read(filename).unwrap();
 
-impl Drop for Sampler<'_> {
-    fn drop(&mut self) {
-        leak_check_release(self.native_sampler, 0, None);
-    }
+    // parse the header
+    let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
+
+    create_texture(
+        device,
+        texture_load_result.desc,
+        texture_load_result.subresources_data,
+    )
 }
 
 pub struct GraphicsDevice<'a> {
@@ -737,13 +743,19 @@ pub struct PipelineStateObject<'a> {
     pub vertex_shader: &'a ID3D11VertexShader,
     pub pixel_shader: &'a ID3D11PixelShader,
     pub blend_state: &'a ID3D11BlendState,
+    pub static_samplers: &'a winapi::um::d3d11::ID3D11SamplerState,
 }
 
 impl Drop for PipelineStateObject<'_> {
     fn drop(&mut self) {
         leak_check_release(self.vertex_shader, 0, None);
         leak_check_release(self.pixel_shader, 0, None);
-        leak_check_release(self.blend_state, 0, None);
+
+        // not leak_check release because when we are creating the same sampler twice the runtime will deduliate it and increment the refcount on the same object instea
+        unsafe {
+            self.static_samplers.Release();
+            self.blend_state.Release();
+        }
     }
 }
 
@@ -824,11 +836,35 @@ pub fn create_pso<'a>(
     };
 
     assert!(error == winapi::shared::winerror::S_OK);
+    let sampler_desc = winapi::um::d3d11::D3D11_SAMPLER_DESC {
+        Filter: winapi::um::d3d11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+        AddressU: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+        AddressV: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+        AddressW: winapi::um::d3d11::D3D11_TEXTURE_ADDRESS_CLAMP,
+        MinLOD: 0.0,
+        MaxLOD: 32.0,
+        MipLODBias: 0.0,
+        MaxAnisotropy: 1,
+        ComparisonFunc: winapi::um::d3d11::D3D11_COMPARISON_NEVER,
+        BorderColor: [1.0, 1.0, 1.0, 1.0],
+    };
+
+    let mut native_sampler: *mut winapi::um::d3d11::ID3D11SamplerState = std::ptr::null_mut();
+
+    let error: HRESULT = unsafe {
+        // create a sampler
+        device
+            .native
+            .CreateSamplerState(&sampler_desc, &mut native_sampler)
+    };
+
+    assert!(error == winapi::shared::winerror::S_OK);
 
     PipelineStateObject {
         vertex_shader: unsafe { vertex_shader.as_mut().unwrap() },
         pixel_shader: unsafe { pixel_shader.as_mut().unwrap() },
         blend_state: unsafe { blend_state.as_mut().unwrap() },
+        static_samplers: unsafe { native_sampler.as_mut().unwrap() },
     }
 }
 
@@ -906,6 +942,36 @@ pub fn bind_pso(command_list: &mut GraphicsCommandList, pso: &PipelineStateObjec
 
         // and set the correct blending states
         command_context.OMSetBlendState(blend_state_mut, &[0.0; 4], 0xffff_ffff);
+
+        // bind all samplers
+        let sampler_mut: *mut ID3D11SamplerState =
+            pso.static_samplers as *const ID3D11SamplerState as u64 as *mut ID3D11SamplerState;
+
+        let samplers: [*mut winapi::um::d3d11::ID3D11SamplerState; 1] = [sampler_mut];
+
+        command_list
+            .command_context
+            .as_ref()
+            .unwrap()
+            .PSSetSamplers(0, 1, samplers.as_ptr());
+    }
+}
+
+pub fn bind_texture(
+    command_list: &mut GraphicsCommandList,
+    bind_slot: u32,
+    srv: &ShaderResourceView,
+) {
+    unsafe {
+        let srv_mut: *mut ID3D11ShaderResourceView =
+            (srv.native_view as *const ID3D11ShaderResourceView as u64)
+                as *mut ID3D11ShaderResourceView;
+
+        command_list
+            .command_context
+            .as_ref()
+            .unwrap()
+            .PSSetShaderResources(bind_slot, 1, &srv_mut);
     }
 }
 

@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 winapi = { version = "0.3", features = ["winuser", "d3d11", "d3d11_1", "winerror", "dxgi1_2", "d3d11sdklayers" ] }
+dds_parser = { path = "../dds_parser" }
 
 [lib]
 path = "./src/graphics_device_lib.rs"

@@ -7,20 +7,25 @@ use os_window::WindowMessages;
 
 pub struct PauseStateStaticData<'a> {
     screen_space_quad_blended_pso: PipelineStateObject<'a>,
+    texture_white: Texture<'a>,
 }
 
 impl PauseStateStaticData<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseStateStaticData<'a> {
+    pub fn new<'a>(device: &'a GraphicsDevice) -> PauseStateStaticData<'a> {
         let screen_space_quad_blended_pso: PipelineStateObject = create_pso(
-            &device_layer.device,
+            device,
             PipelineStateObjectDesc {
                 shader_name: "target_data/shaders/screen_space_quad",
                 premultiplied_alpha: true,
             },
         );
 
+        let texture_white =
+            load_dds_from_file("target_data/textures/engine/white.dds", device).unwrap();
+
         PauseStateStaticData {
             screen_space_quad_blended_pso,
+            texture_white,
         }
     }
 }
@@ -44,9 +49,9 @@ pub struct PauseState<'a> {
 }
 
 impl PauseState<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> PauseState<'a> {
+    pub fn new<'a>(device: &'a GraphicsDevice) -> PauseState<'a> {
         PauseState {
-            static_data: PauseStateStaticData::new(&device_layer),
+            static_data: PauseStateStaticData::new(device),
             frame_data0: PauseStateFrameData::new(),
             frame_data1: PauseStateFrameData::new(),
         }
@@ -91,6 +96,8 @@ pub fn draw_pause_state(
         command_list,
         &static_state_data.screen_space_quad_blended_pso,
     );
+
+    bind_texture(command_list, 0, &static_state_data.texture_white.srv);
 
     let obj_alloc = HeapAlloc::new(
         ScreenSpaceQuadData {

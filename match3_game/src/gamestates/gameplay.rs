@@ -1,25 +1,59 @@
 use super::{GameStateTransitionState, GameStateType, UpdateBehaviourDesc};
-use crate::{Float2, Float4, HeapAlloc, ScreenSpaceQuadData};
+use crate::GameSpaceQuadData;
+use crate::Int2;
+use crate::{Float4, HeapAlloc};
 
 use graphics_device::*;
 use os_window::WindowMessages;
 
 pub struct GameplayStateStaticData<'a> {
-    screen_space_quad_opaque_pso: PipelineStateObject<'a>,
+    game_space_quad_opaque_pso: PipelineStateObject<'a>,
+    bg_texture: Texture<'a>,
+    border_top_texture: Texture<'a>,
+    border_bottom_texture: Texture<'a>,
+    texture_item_background: Texture<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> GameplayStateStaticData<'a> {
-        let screen_space_quad_opaque_pso: PipelineStateObject = create_pso(
-            &device_layer.device,
+    pub fn new<'a>(device: &'a GraphicsDevice) -> GameplayStateStaticData<'a> {
+        let game_space_quad_opaque_pso: PipelineStateObject = create_pso(
+            device,
             PipelineStateObjectDesc {
-                shader_name: "target_data/shaders/screen_space_quad",
-                premultiplied_alpha: false,
+                shader_name: "target_data/shaders/game_space_quad",
+                premultiplied_alpha: true,
             },
         );
 
+        let texture_bg = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds",
+            device,
+        )
+        .unwrap();
+
+        let texture_border_top = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds",
+            device,
+        )
+        .unwrap();
+
+        let texture_border_bottom = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds",
+            device,
+        )
+        .unwrap();
+
+        let texture_item_background = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds",
+            device,
+        )
+        .unwrap();
+
         GameplayStateStaticData {
-            screen_space_quad_opaque_pso,
+            game_space_quad_opaque_pso,
+            bg_texture: texture_bg,
+            border_top_texture: texture_border_top,
+            border_bottom_texture: texture_border_bottom,
+            texture_item_background,
         }
     }
 }
@@ -49,9 +83,9 @@ impl GameplayStateFrameData {
 }
 
 impl GameplayState<'_> {
-    pub fn new<'a>(device_layer: &GraphicsDeviceLayer) -> GameplayState<'a> {
+    pub fn new<'a>(device: &'a GraphicsDevice) -> GameplayState<'a> {
         GameplayState {
-            static_data: GameplayStateStaticData::new(device_layer),
+            static_data: GameplayStateStaticData::new(device),
             frame_data0: GameplayStateFrameData::new(),
             frame_data1: GameplayStateFrameData::new(),
         }
@@ -171,21 +205,94 @@ pub fn draw_gameplay_state(
 
     begin_render_pass_and_clear(command_list, color, backbuffer_rtv);
 
-    bind_pso(command_list, &static_data.screen_space_quad_opaque_pso);
+    bind_pso(command_list, &static_data.game_space_quad_opaque_pso);
+
+    // draw the background
+    {
+        bind_texture(command_list, 0, &static_data.bg_texture.srv);
+
+        let obj_alloc = HeapAlloc::new(
+            GameSpaceQuadData {
+                color: Float4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    a: 1.0,
+                },
+                size_pixels: Int2 { x: 540, y: 960 },
+                position_bottom_left: Int2 { x: 0, y: 0 },
+            },
+            gpu_heap_data,
+            gpu_heap_state,
+        );
+
+        bind_constant(command_list, 0, &obj_alloc);
+
+        draw_vertices(command_list, 4);
+    }
+
+    {
+        bind_texture(command_list, 0, &static_data.border_top_texture.srv);
+
+        let obj_alloc = HeapAlloc::new(
+            GameSpaceQuadData {
+                color: Float4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    a: 1.0,
+                },
+                size_pixels: Int2 { x: 540, y: 184 },
+                position_bottom_left: Int2 { x: 0, y: 960 - 184 },
+            },
+            gpu_heap_data,
+            gpu_heap_state,
+        );
+
+        bind_constant(command_list, 0, &obj_alloc);
+
+        draw_vertices(command_list, 4);
+    }
+
+    {
+        bind_texture(command_list, 0, &static_data.border_bottom_texture.srv);
+
+        let obj_alloc = HeapAlloc::new(
+            GameSpaceQuadData {
+                color: Float4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    a: 1.0,
+                },
+                size_pixels: Int2 { x: 540, y: 184 },
+                position_bottom_left: Int2 { x: 0, y: 0 },
+            },
+            gpu_heap_data,
+            gpu_heap_state,
+        );
+
+        bind_constant(command_list, 0, &obj_alloc);
+
+        draw_vertices(command_list, 4);
+    }
+
+    bind_pso(command_list, &static_data.game_space_quad_opaque_pso);
+    bind_texture(command_list, 0, &static_data.texture_item_background.srv);
 
     for (y, row) in frame_params.grid.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {
-            let x_offset_in_pixels = (x as f32) * 180.0;
-            let y_offset_in_pixels = (y as f32) * 180.0;
+            let x_offset_in_pixels = (x * 91) as i32;
+            let y_offset_in_pixels = (y * 91) as i32;
 
             // allocate the constants for this draw call
             let obj_alloc = HeapAlloc::new(
-                ScreenSpaceQuadData {
+                GameSpaceQuadData {
                     color: if !column {
                         Float4 {
                             x: 1.0,
-                            y: 0.0,
-                            z: 0.0,
+                            y: 1.0,
+                            z: 1.0,
                             a: 1.0,
                         }
                     } else {
@@ -196,13 +303,10 @@ pub fn draw_gameplay_state(
                             a: 1.0,
                         }
                     },
-                    scale: Float2 {
-                        x: (90.0 / 540.0),
-                        y: (90.0 / 960.0),
-                    },
-                    position: Float2 {
-                        x: (90.0 / 540.0) * -4.0 + x_offset_in_pixels / 540.0,
-                        y: (90.0 / 960.0) * 6.0 - y_offset_in_pixels / 960.0,
+                    size_pixels: Int2 { x: 90, y: 90 },
+                    position_bottom_left: Int2 {
+                        x: 45 + x_offset_in_pixels,
+                        y: 960 - 330 + 45 - y_offset_in_pixels,
                     },
                 },
                 gpu_heap_data,

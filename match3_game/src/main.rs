@@ -25,10 +25,23 @@ struct Float2 {
 }
 
 #[repr(C)]
+struct Int2 {
+    x: i32,
+    y: i32,
+}
+
+#[repr(C)]
 struct ScreenSpaceQuadData {
     color: Float4,
     scale: Float2,
     position: Float2,
+}
+
+#[repr(C)]
+struct GameSpaceQuadData {
+    color: Float4,
+    size_pixels: Int2,
+    position_bottom_left: Int2,
 }
 
 struct CpuRenderFrameData {
@@ -88,7 +101,7 @@ fn main() {
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
-                1024 * 8,
+                1024 * 64,
                 "Frame 0 Constants",
             ),
         },
@@ -98,7 +111,7 @@ fn main() {
         cpu_render: CpuRenderFrameData {
             frame_constant_buffer: create_constant_buffer(
                 &graphics_layer,
-                1024 * 8,
+                1024 * 64,
                 "Frame 1 Constants",
             ),
         },
@@ -138,7 +151,11 @@ fn main() {
 
         accumulator = dt;
 
-        execute_possible_state_transition(next_game_state, &mut game_state_stack, &graphics_layer);
+        execute_possible_state_transition(
+            next_game_state,
+            &mut game_state_stack,
+            &graphics_layer.device,
+        );
         next_game_state = GameStateTransitionState::Unchanged;
 
         if game_state_stack.is_empty() {

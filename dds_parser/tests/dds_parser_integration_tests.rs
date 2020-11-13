@@ -76,7 +76,7 @@ fn test_texture_load_and_creation(data: &[u8]) {
     // parse the header
     let texture_load_result = dds_parser::parse_dds_header(&data).unwrap();
 
-    let (_texture, _texture_view) = graphics_device::create_texture(
+    let _texture = graphics_device::create_texture(
         &graphics_layer.device,
         texture_load_result.desc,
         texture_load_result.subresources_data,

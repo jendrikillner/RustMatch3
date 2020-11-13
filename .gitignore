@@ -4,7 +4,12 @@
 target/*
 target_vs/*
 /match3_game/target/*
+/build_environment/nvtt_export/*
+/match3_game/src_data/textures/KawaiiCookieAssetPack/*
+/match3_game/tmp_data/*
 /match3_game/target_vs/*
 /match3_game/.vs/RustMatch3/v15/.suo
 /match3_game/.vs/RustMatch3/v15/Browse.VC.db
 cargo-timing*.html
+/match3_game/.ninja_deps
+/match3_game/.ninja_log
