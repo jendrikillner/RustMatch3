@@ -150,6 +150,63 @@ fn count_selected_fields(grid: &[[bool; 5]; 6]) -> i32 {
     count
 }
 
+fn find_first_selected_tile_coordinate(grid: &[[bool; 5]; 6]) -> (i32, i32) {
+    for (y, row) in grid.iter().enumerate() {
+        for (x, _column) in row.iter().enumerate() {
+            if grid[y][x] {
+                return (x as i32, y as i32);
+            }
+        }
+    }
+
+    panic!("user is expected to call this function with atleast one item selected");
+}
+
+fn valid_grid_id(grid_pos: (i32, i32)) -> bool {
+    if grid_pos.0 < 0 {
+        return false;
+    }
+
+    if grid_pos.0 >= 5 {
+        return false;
+    }
+
+    if grid_pos.1 < 0 {
+        return false;
+    }
+
+    if grid_pos.1 >= 6 {
+        return false;
+    }
+
+    return true;
+}
+
+fn is_direct_neighbor_selected(grid: &[[bool; 5]; 6], tile_x: i32, tile_y: i32) -> bool {
+    let top = (tile_x, tile_y + 1);
+    let bottom = (tile_x, tile_y - 1);
+    let left = (tile_x - 1, tile_y);
+    let right = (tile_x + 1, tile_y);
+
+    if valid_grid_id(top) && grid[top.1 as usize][top.0 as usize] {
+        return true;
+    }
+
+    if valid_grid_id(bottom) && grid[bottom.1 as usize][bottom.0 as usize] {
+        return true;
+    }
+
+    if valid_grid_id(left) && grid[left.1 as usize][left.0 as usize] {
+        return true;
+    }
+
+    if valid_grid_id(right) && grid[right.1 as usize][right.0 as usize] {
+        return true;
+    }
+
+    return false;
+}
+
 pub fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
@@ -176,12 +233,12 @@ pub fn update_gameplay_state(
 
                         frame_data.grid[rnd_row][rnd_col] = true;
 
-						// count how many items are selected now
-						// if 2 are selected we are entering the next state
-						if count_selected_fields(&frame_data.grid) >= 2 {
-							frame_data.state = GameState::ReactToSelection;
-							break;
-						}
+                        // count how many items are selected now
+                        // if 2 are selected we are entering the next state
+                        if count_selected_fields(&frame_data.grid) >= 2 {
+                            frame_data.state = GameState::ReactToSelection;
+                            break;
+                        }
                     }
 
                     _ => {
@@ -191,11 +248,27 @@ pub fn update_gameplay_state(
             }
         }
 
-        GameState::ReactToSelection => {}
+        GameState::ReactToSelection => {
+            assert_eq!( count_selected_fields(&frame_data.grid), 2, "when entering the ReactToSelection state it's expected the user selected 2 items, but {} are selected", count_selected_fields(&frame_data.grid) );
 
-        GameState::ArrangeTiles => {}
+            // first, verify if the two selected items are next to each other
+            let (tile_x, tile_y) = find_first_selected_tile_coordinate(&frame_data.grid);
+
+            // now check if any of the direct niegbor tiles are selected
+            if is_direct_neighbor_selected(&frame_data.grid, tile_x, tile_y) {
+                // todo, swap the tile types
+                // and transition to Validate Grid
+                panic!("not yet implemented");
+            } else {
+                // the user selected tiles that are not connected for a valid move
+                // reset_grid(&mut frame_data.grid);
+                frame_data.state = GameState::ReactToSelection;
+            }
+        }
 
         GameState::ValidateGrid => {}
+
+        GameState::ArrangeTiles => {}
     }
 
     // don't need to switch game states
