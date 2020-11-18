@@ -58,11 +58,38 @@ impl GameplayStateStaticData<'_> {
     }
 }
 
+#[derive(Copy, Clone)]
+pub enum GameState {
+    // the initial state of the gameflow
+    // in this mode the game wait for the user to select two tiles
+    WaitingForSelection,
+
+    // this triggers animations
+    // updates the grid if appropriate
+    // update move counter
+    // ...
+    ReactToSelection,
+
+    // this will check the new grid state, if any tiles are in a position to be removed
+    // remove them and add the necessary points
+    // if something gets removed -> next state ArrangeTiles
+    // nothing gets removed      -> next state WaitingForSelection
+    ValidateGrid,
+
+    // after tiles got removed, move the tiles that are left into the new slots
+    // spawn additional files as spots get available
+    ArrangeTiles,
+}
+
 pub struct GameplayStateFrameData {
     // the state of the grid
     grid: [[bool; 5]; 6],
 
+    // random generator
     rnd_state: Xoroshiro128Rng,
+
+    // maybe move this into an enum with the state (grid etc inside?)
+    state: GameState,
 }
 
 pub struct GameplayState<'a> {
@@ -74,9 +101,10 @@ pub struct GameplayState<'a> {
 impl GameplayStateFrameData {
     pub fn new() -> GameplayStateFrameData {
         GameplayStateFrameData {
+            state: GameState::WaitingForSelection,
             grid: { [[false; 5]; 6] },
             rnd_state: Xoroshiro128Rng {
-                state: [23_480_923_840_238, 459],
+                state: [23_480_923_840_221, 459],
             },
         }
     }
@@ -131,59 +159,43 @@ pub fn update_gameplay_state(
     // copy the state of the previous state as starting point
     frame_data.grid = prev_frame_data.grid;
     frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
+    frame_data.state = prev_frame_data.state;
 
-    for x in messages {
-        match x {
-            WindowMessages::MousePositionChanged(pos) => {
-                println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+    match frame_data.state {
+        GameState::WaitingForSelection => {
+            for x in messages {
+                match x {
+                    WindowMessages::MousePositionChanged(pos) => {
+                        println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+                    }
+
+                    WindowMessages::MouseLeftButtonDown => {
+                        // todo: calculate which tile the user clicked on
+                        let rnd_row = (rnd_next_u64(&mut frame_data.rnd_state) % 6) as usize;
+                        let rnd_col = (rnd_next_u64(&mut frame_data.rnd_state) % 5) as usize;
+
+                        frame_data.grid[rnd_row][rnd_col] = true;
+
+						// count how many items are selected now
+						// if 2 are selected we are entering the next state
+						if count_selected_fields(&frame_data.grid) >= 2 {
+							frame_data.state = GameState::ReactToSelection;
+							break;
+						}
+                    }
+
+                    _ => {
+                        // case we don't care
+                    }
+                }
             }
-
-            WindowMessages::MouseLeftButtonDown => {
-                // pick a random slot
-                let rnd_row = (rnd_next_u64(&mut frame_data.rnd_state) % 6) as usize;
-                let rnd_col = (rnd_next_u64(&mut frame_data.rnd_state) % 5) as usize;
-
-                frame_data.grid[rnd_row][rnd_col] = true;
-            }
-
-            WindowMessages::MouseLeftButtonUp => {
-                println!("mouse:left up");
-            }
-
-            WindowMessages::MouseFocusGained => {
-                println!("mouse:focus gained");
-            }
-
-            WindowMessages::MouseFocusLost => {
-                println!("mouse:focus lost");
-            }
-
-            WindowMessages::WindowClosed => {
-                panic!();
-            } // this should never happen, handled by higher level code
-            WindowMessages::WindowCreated(_x) => {
-                panic!();
-            } // this should never happen
         }
-    }
 
-    // count the number of selected fields
-    // open the pause after 5
-    // and close the game after 10
-    let selected_fields = count_selected_fields(&frame_data.grid);
+        GameState::ReactToSelection => {}
 
-    if selected_fields == 5 && count_selected_fields(&prev_frame_data.grid) != 5 {
-        return UpdateBehaviourDesc {
-            transition_state: GameStateTransitionState::TransitionToNewState(GameStateType::Pause),
-            block_input: false,
-        };
-    }
+        GameState::ArrangeTiles => {}
 
-    if selected_fields == 10 && count_selected_fields(&prev_frame_data.grid) != 10 {
-        return UpdateBehaviourDesc {
-            transition_state: GameStateTransitionState::ReturnToPreviousState,
-            block_input: false,
-        };
+        GameState::ValidateGrid => {}
     }
 
     // don't need to switch game states
