@@ -81,9 +81,19 @@ pub enum GameState {
     ArrangeTiles,
 }
 
+#[derive(Copy, Clone)]
+pub enum ItemType {
+    Cookie,
+    Diamond,
+    Flower,
+    Heart,
+}
+
 pub struct GameplayStateFrameData {
     // the state of the grid
-    grid: [[bool; 5]; 6],
+    grid_selection: [[bool; 5]; 6],
+
+    grid_items: [[ItemType; 5]; 6],
 
     // random generator
     rnd_state: Xoroshiro128Rng,
@@ -98,14 +108,45 @@ pub struct GameplayState<'a> {
     pub frame_data1: GameplayStateFrameData,
 }
 
+fn gen_random_item(random_generator: &mut Xoroshiro128Rng) -> ItemType {
+    match rnd_next_u64(random_generator) % 4 {
+        0 => ItemType::Cookie,
+
+        1 => ItemType::Diamond,
+
+        2 => ItemType::Flower,
+
+        3 => ItemType::Heart,
+
+        _ => {
+            panic!("this cannot really happen, % 4 can only return values from 0-3");
+        }
+    }
+}
+
+fn generate_random_layout(random_generator: &mut Xoroshiro128Rng) -> [[ItemType; 5]; 6] {
+    let mut arr = { [[ItemType::Cookie; 5]; 6] };
+
+    for row in arr.iter_mut() {
+        for x in row.iter_mut() {
+            *x = gen_random_item(random_generator);
+        }
+    }
+
+    arr
+}
+
 impl GameplayStateFrameData {
     pub fn new() -> GameplayStateFrameData {
+        let mut rnd_generator = Xoroshiro128Rng {
+            state: [23_480_923_840_221, 459],
+        };
+
         GameplayStateFrameData {
             state: GameState::WaitingForSelection,
-            grid: { [[false; 5]; 6] },
-            rnd_state: Xoroshiro128Rng {
-                state: [23_480_923_840_221, 459],
-            },
+            grid_selection: { [[false; 5]; 6] },
+            grid_items: generate_random_layout(&mut rnd_generator),
+            rnd_state: rnd_generator,
         }
     }
 }
@@ -214,7 +255,7 @@ pub fn update_gameplay_state(
     _dt: f32,
 ) -> UpdateBehaviourDesc {
     // copy the state of the previous state as starting point
-    frame_data.grid = prev_frame_data.grid;
+    frame_data.grid_selection = prev_frame_data.grid_selection;
     frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
     frame_data.state = prev_frame_data.state;
 
@@ -231,11 +272,11 @@ pub fn update_gameplay_state(
                         let rnd_row = (rnd_next_u64(&mut frame_data.rnd_state) % 6) as usize;
                         let rnd_col = (rnd_next_u64(&mut frame_data.rnd_state) % 5) as usize;
 
-                        frame_data.grid[rnd_row][rnd_col] = true;
+                        frame_data.grid_selection[rnd_row][rnd_col] = true;
 
                         // count how many items are selected now
                         // if 2 are selected we are entering the next state
-                        if count_selected_fields(&frame_data.grid) >= 2 {
+                        if count_selected_fields(&frame_data.grid_selection) >= 2 {
                             frame_data.state = GameState::ReactToSelection;
                             break;
                         }
@@ -249,13 +290,13 @@ pub fn update_gameplay_state(
         }
 
         GameState::ReactToSelection => {
-            assert_eq!( count_selected_fields(&frame_data.grid), 2, "when entering the ReactToSelection state it's expected the user selected 2 items, but {} are selected", count_selected_fields(&frame_data.grid) );
+            assert_eq!( count_selected_fields(&frame_data.grid_selection), 2, "when entering the ReactToSelection state it's expected the user selected 2 items, but {} are selected", count_selected_fields(&frame_data.grid_selection) );
 
             // first, verify if the two selected items are next to each other
-            let (tile_x, tile_y) = find_first_selected_tile_coordinate(&frame_data.grid);
+            let (tile_x, tile_y) = find_first_selected_tile_coordinate(&frame_data.grid_selection);
 
             // now check if any of the direct niegbor tiles are selected
-            if is_direct_neighbor_selected(&frame_data.grid, tile_x, tile_y) {
+            if is_direct_neighbor_selected(&frame_data.grid_selection, tile_x, tile_y) {
                 // todo, swap the tile types
                 // and transition to Validate Grid
                 panic!("not yet implemented");
@@ -365,7 +406,7 @@ pub fn draw_gameplay_state(
     bind_pso(command_list, &static_data.game_space_quad_opaque_pso);
     bind_texture(command_list, 0, &static_data.texture_item_background.srv);
 
-    for (y, row) in frame_params.grid.iter().enumerate() {
+    for (y, row) in frame_params.grid_selection.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {
             let x_offset_in_pixels = (x * 91) as i32;
             let y_offset_in_pixels = (y * 91) as i32;
