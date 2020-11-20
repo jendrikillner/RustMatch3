@@ -31,11 +31,28 @@ build tmp_data/textures/KawaiiCookieAssetPack/gameplay_top_border.png: export_sv
 build tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.png: export_svg_tile src_data/textures/KawaiiCookieAssetPack/SVGs/hud-pieces.svg
     export_id = g7416
 
+build tmp_data/textures/KawaiiCookieAssetPack/cookie_base.png: export_svg_tile src_data/textures/KawaiiCookieAssetPack/SVGs/c-cookie.svg
+    export_id = g27164
+
+build tmp_data/textures/KawaiiCookieAssetPack/diamond_base.png: export_svg_tile src_data/textures/KawaiiCookieAssetPack/SVGs/c-diamond.svg
+    export_id = g22332-4
+
+build tmp_data/textures/KawaiiCookieAssetPack/flower_base.png: export_svg_tile src_data/textures/KawaiiCookieAssetPack/SVGs/c-flower.svg
+    export_id = g49556
+
+build tmp_data/textures/KawaiiCookieAssetPack/heart_base.png: export_svg_tile src_data/textures/KawaiiCookieAssetPack/SVGs/c-heart.svg
+    export_id = g16842
+
 # convert the PNG files into dds file that we can load at runtime
 build target_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds: convert_to_dds_bc1   tmp_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.png
 build target_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.dds:   convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_bottom_border.png
 build target_data/textures/KawaiiCookieAssetPack/gameplay_top_border.dds:      convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_top_border.png
 build target_data/textures/KawaiiCookieAssetPack/gameplay_item_background.dds: convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/gameplay_item_background.png
+build target_data/textures/KawaiiCookieAssetPack/cookie_base.dds: convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/cookie_base.png
+build target_data/textures/KawaiiCookieAssetPack/diamond_base.dds: convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/diamond_base.png
+build target_data/textures/KawaiiCookieAssetPack/flower_base.dds: convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/flower_base.png
+build target_data/textures/KawaiiCookieAssetPack/heart_base.dds: convert_to_dds_rgba8 tmp_data/textures/KawaiiCookieAssetPack/heart_base.png
+
 build target_data/textures/engine/black_white_grid_64x64.dds:                  convert_to_dds_rgba8 src_data/textures/engine/black_white_grid_64x64.png
 build target_data/textures/engine/white.dds:                                   convert_to_dds_bc1   src_data/textures/engine/white.png
 
