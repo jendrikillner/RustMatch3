@@ -235,6 +235,8 @@ impl Drop for ShaderResourceView<'_> {
 pub struct Texture<'a> {
     pub native_texture: &'a mut winapi::um::d3d11::ID3D11Texture2D,
     pub srv: ShaderResourceView<'a>,
+    pub width: i32,
+    pub height: i32,
 }
 
 impl Drop for Texture<'_> {
@@ -278,6 +280,8 @@ pub fn create_texture<'a>(
         srv: ShaderResourceView {
             native_view: unsafe { texture_view.as_mut().unwrap() },
         },
+        width: texture_desc.Width as i32,
+        height: texture_desc.Height as i32,
     })
 }
 

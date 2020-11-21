@@ -487,18 +487,21 @@ pub fn draw_gameplay_state(
 
             // bind the correct texture based on the item
 
-            let (texture_srv, item_size_x, item_size_y) = match item {
-                ItemType::Cookie => (&static_data.item_texture_cookie.srv, 57, 60),
-                ItemType::Diamond => (&static_data.item_texture_diamond.srv, 57, 60),
-                ItemType::Flower => (&static_data.item_texture_flower.srv, 57, 60),
-                ItemType::Heart => (&static_data.item_texture_heart.srv, 57, 54),
+            let texture = match item {
+                ItemType::Cookie => &static_data.item_texture_cookie,
+                ItemType::Diamond => &static_data.item_texture_diamond,
+                ItemType::Flower => &static_data.item_texture_flower,
+                ItemType::Heart => &static_data.item_texture_heart,
             };
+
+            let item_size_x = texture.width;
+            let item_size_y = texture.height;
 
             // divide by 2 since we want the items to be centered with the same amount of pixels on each side
             let x_offset_grid = (91 - item_size_x) / 2;
             let y_offset_grid = (91 - item_size_y) / 2;
 
-            bind_texture(command_list, 0, texture_srv);
+            bind_texture(command_list, 0, &texture.srv);
 
             // allocate the constants for this draw call
             let obj_alloc = HeapAlloc::new(
