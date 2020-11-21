@@ -12,6 +12,11 @@ pub struct GameplayStateStaticData<'a> {
     border_top_texture: Texture<'a>,
     border_bottom_texture: Texture<'a>,
     texture_item_background: Texture<'a>,
+
+    item_texture_cookie: Texture<'a>,
+    item_texture_diamond: Texture<'a>,
+    item_texture_flower: Texture<'a>,
+    item_texture_heart: Texture<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -48,12 +53,40 @@ impl GameplayStateStaticData<'_> {
         )
         .unwrap();
 
+        let item_texture_cookie = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/cookie_base.dds",
+            device,
+        )
+        .unwrap();
+
+        let item_texture_diamond = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/diamond_base.dds",
+            device,
+        )
+        .unwrap();
+
+        let item_texture_flower = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/flower_base.dds",
+            device,
+        )
+        .unwrap();
+
+        let item_texture_heart = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/heart_base.dds",
+            device,
+        )
+        .unwrap();
+
         GameplayStateStaticData {
             game_space_quad_opaque_pso,
             bg_texture: texture_bg,
             border_top_texture: texture_border_top,
             border_bottom_texture: texture_border_bottom,
             texture_item_background,
+            item_texture_cookie,
+            item_texture_diamond,
+            item_texture_flower,
+            item_texture_heart,
         }
     }
 }
@@ -406,6 +439,7 @@ pub fn draw_gameplay_state(
     bind_pso(command_list, &static_data.game_space_quad_opaque_pso);
     bind_texture(command_list, 0, &static_data.texture_item_background.srv);
 
+    // draw the grid
     for (y, row) in frame_params.grid_selection.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {
             let x_offset_in_pixels = (x * 91) as i32;
@@ -433,6 +467,55 @@ pub fn draw_gameplay_state(
                     position_bottom_left: Int2 {
                         x: 45 + x_offset_in_pixels,
                         y: 960 - 330 + 45 - y_offset_in_pixels,
+                    },
+                },
+                gpu_heap_data,
+                gpu_heap_state,
+            );
+
+            bind_constant(command_list, 0, &obj_alloc);
+
+            draw_vertices(command_list, 4);
+        }
+    }
+
+    // draw the items
+    for (y, row) in frame_params.grid_items.iter().enumerate() {
+        for (x, item) in row.iter().enumerate() {
+            let x_offset_in_pixels = (x * 91) as i32;
+            let y_offset_in_pixels = (y * 91) as i32;
+
+            // bind the correct texture based on the item
+
+            let (texture_srv, item_size_x, item_size_y) = match item {
+                ItemType::Cookie => (&static_data.item_texture_cookie.srv, 57, 60),
+                ItemType::Diamond => (&static_data.item_texture_diamond.srv, 57, 60),
+                ItemType::Flower => (&static_data.item_texture_flower.srv, 57, 60),
+                ItemType::Heart => (&static_data.item_texture_heart.srv, 57, 54),
+            };
+
+            // divide by 2 since we want the items to be centered with the same amount of pixels on each side
+            let x_offset_grid = (91 - item_size_x) / 2;
+            let y_offset_grid = (91 - item_size_y) / 2;
+
+            bind_texture(command_list, 0, texture_srv);
+
+            // allocate the constants for this draw call
+            let obj_alloc = HeapAlloc::new(
+                GameSpaceQuadData {
+                    color: Float4 {
+                        x: 1.0,
+                        y: 1.0,
+                        z: 1.0,
+                        a: 1.0,
+                    },
+                    size_pixels: Int2 {
+                        x: item_size_x,
+                        y: item_size_y,
+                    },
+                    position_bottom_left: Int2 {
+                        x: 45 + x_offset_grid + x_offset_in_pixels,
+                        y: 960 + y_offset_grid - 330 + 45 - y_offset_in_pixels,
                     },
                 },
                 gpu_heap_data,
