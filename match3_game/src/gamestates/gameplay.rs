@@ -17,6 +17,8 @@ pub struct GameplayStateStaticData<'a> {
     item_texture_diamond: Texture<'a>,
     item_texture_flower: Texture<'a>,
     item_texture_heart: Texture<'a>,
+    item_texture_square: Texture<'a>,
+    item_texture_round: Texture<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -77,6 +79,18 @@ impl GameplayStateStaticData<'_> {
         )
         .unwrap();
 
+        let item_texture_square = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/square_base.dds",
+            device,
+        )
+        .unwrap();
+
+        let item_texture_round = load_dds_from_file(
+            "target_data/textures/KawaiiCookieAssetPack/round_base.dds",
+            device,
+        )
+        .unwrap();
+
         GameplayStateStaticData {
             game_space_quad_opaque_pso,
             bg_texture: texture_bg,
@@ -87,6 +101,8 @@ impl GameplayStateStaticData<'_> {
             item_texture_diamond,
             item_texture_flower,
             item_texture_heart,
+            item_texture_square,
+            item_texture_round,
         }
     }
 }
@@ -120,6 +136,8 @@ pub enum ItemType {
     Diamond,
     Flower,
     Heart,
+    Round,
+    Square,
 }
 
 pub struct GameplayStateFrameData {
@@ -142,14 +160,13 @@ pub struct GameplayState<'a> {
 }
 
 fn gen_random_item(random_generator: &mut Xoroshiro128Rng) -> ItemType {
-    match rnd_next_u64(random_generator) % 4 {
+    match rnd_next_u64(random_generator) % 6 {
         0 => ItemType::Cookie,
-
         1 => ItemType::Diamond,
-
         2 => ItemType::Flower,
-
         3 => ItemType::Heart,
+        4 => ItemType::Round,
+        5 => ItemType::Square,
 
         _ => {
             panic!("this cannot really happen, % 4 can only return values from 0-3");
@@ -492,6 +509,8 @@ pub fn draw_gameplay_state(
                 ItemType::Diamond => &static_data.item_texture_diamond,
                 ItemType::Flower => &static_data.item_texture_flower,
                 ItemType::Heart => &static_data.item_texture_heart,
+                ItemType::Square => &static_data.item_texture_square,
+                ItemType::Round => &static_data.item_texture_round,
             };
 
             let item_size_x = texture.width;
