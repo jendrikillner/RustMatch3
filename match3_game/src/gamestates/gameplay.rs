@@ -146,6 +146,9 @@ pub struct GameplayStateFrameData {
 
     grid_items: [[ItemType; 5]; 6],
 
+    mouse_pos_worldspace_x: i32,
+    mouse_pos_worldspace_y: i32,
+
     // random generator
     rnd_state: Xoroshiro128Rng,
 
@@ -197,6 +200,8 @@ impl GameplayStateFrameData {
             grid_selection: { [[false; 5]; 6] },
             grid_items: generate_random_layout(&mut rnd_generator),
             rnd_state: rnd_generator,
+            mouse_pos_worldspace_x: 0,
+            mouse_pos_worldspace_y: 0,
         }
     }
 }
@@ -308,29 +313,34 @@ pub fn update_gameplay_state(
     frame_data.grid_selection = prev_frame_data.grid_selection;
     frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
     frame_data.state = prev_frame_data.state;
+    frame_data.mouse_pos_worldspace_x = prev_frame_data.mouse_pos_worldspace_x;
+    frame_data.mouse_pos_worldspace_x = prev_frame_data.mouse_pos_worldspace_x;
 
     match frame_data.state {
         GameState::WaitingForSelection => {
-            let mut mouse_pos_worldspace_x: i32;
-            let mut mouse_pos_worldspace_y: i32;
-
             for x in messages {
                 match x {
                     WindowMessages::MousePositionChanged(pos) => {
                         println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+
+                        // calculate which position the user clicked on
                         // mouse position is supplied in windows space
                         // and we need to convert it into game space
                         // window space origin is at the top left going down
                         // game space is is bottom-left going up
                         // so we have to adjust the y coordinate accordingly
-                        mouse_pos_worldspace_x = pos.x;
-                        mouse_pos_worldspace_y = 960 - pos.y;
+                        frame_data.mouse_pos_worldspace_x = pos.x;
+                        frame_data.mouse_pos_worldspace_y = 960 - pos.y;
+                    }
 
+                    WindowMessages::MouseLeftButtonDown => {
                         let grid_origin_x = 45;
                         let grid_origin_y = 675 - 6 * 90;
 
-                        let cursor_relative_to_grid_x = mouse_pos_worldspace_x - grid_origin_x;
-                        let cursor_relative_to_grid_y = mouse_pos_worldspace_y - grid_origin_y;
+                        let cursor_relative_to_grid_x =
+                            frame_data.mouse_pos_worldspace_x - grid_origin_x;
+                        let cursor_relative_to_grid_y =
+                            frame_data.mouse_pos_worldspace_y - grid_origin_y;
 
                         let tile_id_x = cursor_relative_to_grid_x / 91;
                         let tile_id_y = 6 - (cursor_relative_to_grid_y / 91);
@@ -339,10 +349,6 @@ pub fn update_gameplay_state(
                             frame_data.grid_selection[tile_id_y as usize][tile_id_x as usize] =
                                 true;
                         }
-                    }
-
-                    WindowMessages::MouseLeftButtonDown => {
-                        // calculate which position the user clicked on
                     }
 
                     _ => {
