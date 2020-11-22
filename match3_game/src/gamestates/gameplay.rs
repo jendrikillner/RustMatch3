@@ -246,6 +246,14 @@ fn count_selected_fields(grid: &[[bool; 5]; 6]) -> i32 {
     count
 }
 
+fn reset_grid(grid: &mut [[bool; 5]; 6]) {
+    for (y, row) in grid.iter_mut().enumerate() {
+        for (x, item) in row.iter_mut().enumerate() {
+            *item = false;
+        }
+    }
+}
+
 fn find_first_selected_tile_coordinate(grid: &[[bool; 5]; 6]) -> (i32, i32) {
     for (y, row) in grid.iter().enumerate() {
         for (x, _column) in row.iter().enumerate() {
@@ -349,6 +357,11 @@ pub fn update_gameplay_state(
                             frame_data.grid_selection[tile_id_y as usize][tile_id_x as usize] =
                                 true;
                         }
+
+                        if count_selected_fields(&frame_data.grid_selection) >= 2 {
+                            frame_data.state = GameState::ReactToSelection;
+                            break;
+                        }
                     }
 
                     _ => {
@@ -371,8 +384,8 @@ pub fn update_gameplay_state(
                 panic!("not yet implemented");
             } else {
                 // the user selected tiles that are not connected for a valid move
-                // reset_grid(&mut frame_data.grid);
-                frame_data.state = GameState::ReactToSelection;
+                reset_grid(&mut frame_data.grid_selection);
+                frame_data.state = GameState::WaitingForSelection;
             }
         }
 
