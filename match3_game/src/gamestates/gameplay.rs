@@ -344,7 +344,7 @@ fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], selection_grid: &[[b
     grid_items[selection2.1][selection2.0] = temp;
 }
 
-fn try_find_non_empty_group(row: &[ItemType; 5]) -> Option<(i32, i32)> {
+fn try_find_non_empty_group(row: &[ItemType]) -> Option<(i32, i32)> {
     for (start_index, item) in row.iter().enumerate() {
         let mut match_counter = 1;
         let group_match_type = *item;
@@ -455,6 +455,36 @@ pub fn update_gameplay_state(
                     for x in group.0..(group.0 + group.1) {
                         row[x as usize] = ItemType::Cookie;
                     }
+                }
+            }
+
+            // now check the coloums, for that we are transposing vectors into rows
+            for x in 0..(frame_data.grid_items[0].len()) {
+                // build a column from left to right
+                let mut column = [
+                    frame_data.grid_items[0][x],
+                    frame_data.grid_items[1][x],
+                    frame_data.grid_items[2][x],
+                    frame_data.grid_items[3][x],
+                    frame_data.grid_items[4][x],
+                    frame_data.grid_items[5][x],
+                ];
+
+                while let Some(group) = try_find_non_empty_group(&column) {
+                    for y in group.0..(group.0 + group.1) {
+                        frame_data.grid_items[y as usize][x] = ItemType::Cookie;
+                    }
+
+                    // reload the column
+					// because the values are changes inside of the previous step (temp)
+                    column = [
+                        frame_data.grid_items[0][x],
+                        frame_data.grid_items[1][x],
+                        frame_data.grid_items[2][x],
+                        frame_data.grid_items[3][x],
+                        frame_data.grid_items[4][x],
+                        frame_data.grid_items[5][x],
+                    ];
                 }
             }
 
