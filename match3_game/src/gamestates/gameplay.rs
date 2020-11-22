@@ -132,6 +132,7 @@ pub enum GameState {
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum ItemType {
+    None,
     Cookie,
     Diamond,
     Flower,
@@ -357,7 +358,7 @@ fn try_find_non_empty_group(row: &[ItemType], search_start: usize) -> Option<(i3
             }
         }
 
-        if match_counter >= 3 && group_match_type != ItemType::Cookie {
+        if match_counter >= 3 && group_match_type != ItemType::None {
             return Some((start_index as i32, match_counter));
         }
     }
@@ -494,7 +495,7 @@ pub fn update_gameplay_state(
             for (y, row) in removale_grid.iter().enumerate() {
                 for (x, item) in row.iter().enumerate() {
                     if *item {
-                        frame_data.grid_items[y][x] = ItemType::Cookie;
+                        frame_data.grid_items[y][x] = ItemType::None;
                     }
                 }
             }
@@ -505,7 +506,9 @@ pub fn update_gameplay_state(
             frame_data.state = GameState::ArrangeTiles;
         }
 
-        GameState::ArrangeTiles => {}
+        GameState::ArrangeTiles => {
+            frame_data.state = GameState::WaitingForSelection;
+        }
     }
 
     // don't need to switch game states
@@ -657,6 +660,9 @@ pub fn draw_gameplay_state(
                 ItemType::Heart => &static_data.item_texture_heart,
                 ItemType::Square => &static_data.item_texture_square,
                 ItemType::Round => &static_data.item_texture_round,
+                ItemType::None => {
+                    continue;
+                }
             };
 
             let item_size_x = texture.width;
