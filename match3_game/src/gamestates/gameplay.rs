@@ -311,6 +311,39 @@ fn is_direct_neighbor_selected(grid: &[[bool; 5]; 6], tile_x: i32, tile_y: i32) 
     return false;
 }
 
+fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], selection_grid: &[[bool; 5]; 6]) {
+    let mut selection_count = 0;
+    let mut selection1 = (0, 0);
+    let mut selection2 = (0, 0);
+
+    assert_eq!(count_selected_fields(selection_grid), 2);
+
+    // first find the two selected items
+    for (y, row) in selection_grid.iter().enumerate() {
+        for (x, item) in row.iter().enumerate() {
+            if *item {
+                if selection_count == 0 {
+                    selection1 = (x, y);
+                    selection_count = selection_count + 1;
+                } else {
+                    selection2 = (x, y);
+                }
+            }
+        }
+    }
+
+    // once we have the two selected tiles, we can swap
+
+    // store the item from selection 1 in a temp variable
+    let temp = grid_items[selection1.1][selection1.0];
+
+    // assign the item from selection 2 into the spot of selection 1
+    grid_items[selection1.1][selection1.0] = grid_items[selection2.1][selection2.0];
+
+    // and store the old selection1 into the slot of selection 2
+    grid_items[selection2.1][selection2.0] = temp;
+}
+
 pub fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
@@ -319,6 +352,7 @@ pub fn update_gameplay_state(
 ) -> UpdateBehaviourDesc {
     // copy the state of the previous state as starting point
     frame_data.grid_selection = prev_frame_data.grid_selection;
+    frame_data.grid_items = prev_frame_data.grid_items;
     frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
     frame_data.state = prev_frame_data.state;
     frame_data.mouse_pos_worldspace_x = prev_frame_data.mouse_pos_worldspace_x;
@@ -379,9 +413,11 @@ pub fn update_gameplay_state(
 
             // now check if any of the direct niegbor tiles are selected
             if is_direct_neighbor_selected(&frame_data.grid_selection, tile_x, tile_y) {
-                // todo, swap the tile types
-                // and transition to Validate Grid
-                panic!("not yet implemented");
+                // swap the tile so that the grid represents the state after the requested transition
+                swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
+
+                // switch to the next state which is responsible for checking if the user matched 3 items
+                frame_data.state = GameState::ValidateGrid;
             } else {
                 // the user selected tiles that are not connected for a valid move
                 reset_grid(&mut frame_data.grid_selection);
