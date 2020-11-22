@@ -130,7 +130,7 @@ pub enum GameState {
     ArrangeTiles,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum ItemType {
     Cookie,
     Diamond,
@@ -344,6 +344,27 @@ fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], selection_grid: &[[b
     grid_items[selection2.1][selection2.0] = temp;
 }
 
+fn try_find_non_empty_group(row: &[ItemType; 5]) -> Option<(i32, i32)> {
+    for (start_index, item) in row.iter().enumerate() {
+        let mut match_counter = 1;
+        let group_match_type = *item;
+
+        for x in (start_index + 1)..row.len() {
+            if row[x] == group_match_type {
+                match_counter += 1;
+            } else {
+                break;
+            }
+        }
+
+        if match_counter >= 3 && group_match_type != ItemType::Cookie {
+            return Some((start_index as i32, match_counter));
+        }
+    }
+
+    None
+}
+
 pub fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
@@ -425,7 +446,20 @@ pub fn update_gameplay_state(
             }
         }
 
-        GameState::ValidateGrid => {}
+        GameState::ValidateGrid => {
+            // check if there are any 3 matching tiles next to each
+
+            // first check for each row if we have any 3 matching tiles
+            for (y, row) in frame_data.grid_items.iter_mut().enumerate() {
+                while let Some(group) = try_find_non_empty_group(row) {
+                    for x in group.0..(group.0 + group.1) {
+                        row[x as usize] = ItemType::Cookie;
+                    }
+                }
+            }
+
+            frame_data.state = GameState::ArrangeTiles;
+        }
 
         GameState::ArrangeTiles => {}
     }
