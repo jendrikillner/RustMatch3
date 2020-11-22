@@ -311,25 +311,38 @@ pub fn update_gameplay_state(
 
     match frame_data.state {
         GameState::WaitingForSelection => {
+            let mut mouse_pos_worldspace_x: i32;
+            let mut mouse_pos_worldspace_y: i32;
+
             for x in messages {
                 match x {
                     WindowMessages::MousePositionChanged(pos) => {
                         println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+                        // mouse position is supplied in windows space
+                        // and we need to convert it into game space
+                        // window space origin is at the top left going down
+                        // game space is is bottom-left going up
+                        // so we have to adjust the y coordinate accordingly
+                        mouse_pos_worldspace_x = pos.x;
+                        mouse_pos_worldspace_y = 960 - pos.y;
+
+                        let grid_origin_x = 45;
+                        let grid_origin_y = 675 - 6 * 90;
+
+                        let cursor_relative_to_grid_x = mouse_pos_worldspace_x - grid_origin_x;
+                        let cursor_relative_to_grid_y = mouse_pos_worldspace_y - grid_origin_y;
+
+                        let tile_id_x = cursor_relative_to_grid_x / 91;
+                        let tile_id_y = 6 - (cursor_relative_to_grid_y / 91);
+
+                        if tile_id_x >= 0 && tile_id_x < 5 && tile_id_y >= 0 && tile_id_y < 6 {
+                            frame_data.grid_selection[tile_id_y as usize][tile_id_x as usize] =
+                                true;
+                        }
                     }
 
                     WindowMessages::MouseLeftButtonDown => {
-                        // todo: calculate which tile the user clicked on
-                        let rnd_row = (rnd_next_u64(&mut frame_data.rnd_state) % 6) as usize;
-                        let rnd_col = (rnd_next_u64(&mut frame_data.rnd_state) % 5) as usize;
-
-                        frame_data.grid_selection[rnd_row][rnd_col] = true;
-
-                        // count how many items are selected now
-                        // if 2 are selected we are entering the next state
-                        if count_selected_fields(&frame_data.grid_selection) >= 2 {
-                            frame_data.state = GameState::ReactToSelection;
-                            break;
-                        }
+                        // calculate which position the user clicked on
                     }
 
                     _ => {
