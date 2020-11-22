@@ -490,6 +490,16 @@ pub fn update_gameplay_state(
                 }
             }
 
+            if count_selected_fields(&removale_grid) < 3 {
+                // swap the tile back, the user did not match 3 tiles
+                swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
+
+                reset_grid(&mut frame_data.grid_selection);
+
+                // back to selection state
+                frame_data.state = GameState::WaitingForSelection;
+            }
+
             // now all slots that we want to remove items from have been marked inside of removale_grid
             // so now actually empty the item grid
             for (y, row) in removale_grid.iter().enumerate() {
