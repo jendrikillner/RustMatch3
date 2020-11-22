@@ -344,8 +344,8 @@ fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], selection_grid: &[[b
     grid_items[selection2.1][selection2.0] = temp;
 }
 
-fn try_find_non_empty_group(row: &[ItemType]) -> Option<(i32, i32)> {
-    for (start_index, item) in row.iter().enumerate() {
+fn try_find_non_empty_group(row: &[ItemType], search_start: usize) -> Option<(i32, i32)> {
+    for (start_index, item) in row.iter().skip(search_start).enumerate() {
         let mut match_counter = 1;
         let group_match_type = *item;
 
@@ -449,19 +449,27 @@ pub fn update_gameplay_state(
         GameState::ValidateGrid => {
             // check if there are any 3 matching tiles next to each
 
+            // this grid will be updated as we go along
+            // we don't want to change the original grid in one go
+            let mut removale_grid = [[false; 5]; 6];
+
+            let mut last_group_end = 0;
+
             // first check for each row if we have any 3 matching tiles
             for (y, row) in frame_data.grid_items.iter_mut().enumerate() {
-                while let Some(group) = try_find_non_empty_group(row) {
+                while let Some(group) = try_find_non_empty_group(row, last_group_end) {
                     for x in group.0..(group.0 + group.1) {
-                        row[x as usize] = ItemType::Cookie;
+                        removale_grid[y][x as usize] = true;
                     }
+
+                    last_group_end = (group.0 + group.1) as usize;
                 }
             }
 
             // now check the coloums, for that we are transposing vectors into rows
             for x in 0..(frame_data.grid_items[0].len()) {
                 // build a column from left to right
-                let mut column = [
+                let column = [
                     frame_data.grid_items[0][x],
                     frame_data.grid_items[1][x],
                     frame_data.grid_items[2][x],
@@ -470,23 +478,29 @@ pub fn update_gameplay_state(
                     frame_data.grid_items[5][x],
                 ];
 
-                while let Some(group) = try_find_non_empty_group(&column) {
+                let mut last_group_end = 0;
+
+                while let Some(group) = try_find_non_empty_group(&column, last_group_end) {
                     for y in group.0..(group.0 + group.1) {
-                        frame_data.grid_items[y as usize][x] = ItemType::Cookie;
+                        removale_grid[y as usize][x] = true;
                     }
 
-                    // reload the column
-					// because the values are changes inside of the previous step (temp)
-                    column = [
-                        frame_data.grid_items[0][x],
-                        frame_data.grid_items[1][x],
-                        frame_data.grid_items[2][x],
-                        frame_data.grid_items[3][x],
-                        frame_data.grid_items[4][x],
-                        frame_data.grid_items[5][x],
-                    ];
+                    last_group_end = (group.0 + group.1) as usize;
                 }
             }
+
+            // now all slots that we want to remove items from have been marked inside of removale_grid
+            // so now actually empty the item grid
+            for (y, row) in removale_grid.iter().enumerate() {
+                for (x, item) in row.iter().enumerate() {
+                    if *item {
+                        frame_data.grid_items[y][x] = ItemType::Cookie;
+                    }
+                }
+            }
+
+            // reset the selection before transitioning to the next state
+            reset_grid(&mut frame_data.grid_selection);
 
             frame_data.state = GameState::ArrangeTiles;
         }
