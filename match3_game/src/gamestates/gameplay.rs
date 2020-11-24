@@ -491,29 +491,31 @@ pub fn update_gameplay_state(
             }
 
             if count_selected_fields(&removale_grid) < 3 {
-                // swap the tile back, the user did not match 3 tiles
-                swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
+                if count_selected_fields(&frame_data.grid_selection) == 2 {
+                    // swap the tile back, the user did not match 3 tiles
+                    swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
 
-                reset_grid(&mut frame_data.grid_selection);
+                    reset_grid(&mut frame_data.grid_selection);
+                }
 
                 // back to selection state
                 frame_data.state = GameState::WaitingForSelection;
-            }
-
-            // now all slots that we want to remove items from have been marked inside of removale_grid
-            // so now actually empty the item grid
-            for (y, row) in removale_grid.iter().enumerate() {
-                for (x, item) in row.iter().enumerate() {
-                    if *item {
-                        frame_data.grid_items[y][x] = ItemType::None;
+            } else {
+                // now all slots that we want to remove items from have been marked inside of removale_grid
+                // so now actually empty the item grid
+                for (y, row) in removale_grid.iter().enumerate() {
+                    for (x, item) in row.iter().enumerate() {
+                        if *item {
+                            frame_data.grid_items[y][x] = ItemType::None;
+                        }
                     }
                 }
+
+                // reset the selection before transitioning to the next state
+                reset_grid(&mut frame_data.grid_selection);
+
+                frame_data.state = GameState::ArrangeTiles;
             }
-
-            // reset the selection before transitioning to the next state
-            reset_grid(&mut frame_data.grid_selection);
-
-            frame_data.state = GameState::ArrangeTiles;
         }
 
         GameState::ArrangeTiles => {
@@ -535,7 +537,9 @@ pub fn update_gameplay_state(
                 }
             }
 
-            frame_data.state = GameState::WaitingForSelection;
+            // after we have done this there might be new matches been formed
+            // reuse the logic of the validate state grid to check this
+            frame_data.state = GameState::ValidateGrid;
         }
     }
 
