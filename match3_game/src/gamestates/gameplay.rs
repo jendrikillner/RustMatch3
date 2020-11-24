@@ -517,6 +517,24 @@ pub fn update_gameplay_state(
         }
 
         GameState::ArrangeTiles => {
+            // once the user matched a few tiles they wil lbe removed from the board
+            // this will create holes, we will them by moving existing pieces into the slots
+            // for this we start from the bottom of the grid and move them down
+
+            for y in (1..frame_data.grid_items.len()).rev() {
+                for x in 0..frame_data.grid_items[y].len() {
+                    let item = frame_data.grid_items[y][x];
+
+                    if item == ItemType::None {
+                        // assign the item from selection 2 into the spot of selection 1
+                        frame_data.grid_items[y][x] = frame_data.grid_items[y - 1][x];
+
+                        // and store the old selection1 into the slot of selection 2
+                        frame_data.grid_items[y - 1][x] = item;
+                    }
+                }
+            }
+
             frame_data.state = GameState::WaitingForSelection;
         }
     }
