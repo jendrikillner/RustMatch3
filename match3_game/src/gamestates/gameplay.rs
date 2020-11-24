@@ -537,6 +537,15 @@ pub fn update_gameplay_state(
                 }
             }
 
+			// now run over the grid one more time and fill the empty spots with new entries
+			for y in 0..frame_data.grid_items.len() {
+                for x in 0..frame_data.grid_items[y].len() {
+					if frame_data.grid_items[y][x] == ItemType::None {
+                        frame_data.grid_items[y][x] = gen_random_item( &mut frame_data.rnd_state );
+					}
+				}
+			}
+
             // after we have done this there might be new matches been formed
             // reuse the logic of the validate state grid to check this
             frame_data.state = GameState::ValidateGrid;
