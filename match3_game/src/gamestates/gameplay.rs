@@ -1,4 +1,4 @@
-use super::{GameStateTransitionState, GameStateType, UpdateBehaviourDesc};
+use super::{GameStateTransitionState, UpdateBehaviourDesc};
 use crate::GameSpaceQuadData;
 use crate::Int2;
 use crate::{Float4, HeapAlloc};
@@ -248,8 +248,8 @@ fn count_selected_fields(grid: &[[bool; 5]; 6]) -> i32 {
 }
 
 fn reset_grid(grid: &mut [[bool; 5]; 6]) {
-    for (y, row) in grid.iter_mut().enumerate() {
-        for (x, item) in row.iter_mut().enumerate() {
+    for row in grid.iter_mut() {
+        for item in row.iter_mut() {
             *item = false;
         }
     }
@@ -284,7 +284,7 @@ fn valid_grid_id(grid_pos: (i32, i32)) -> bool {
         return false;
     }
 
-    return true;
+    true
 }
 
 fn is_direct_neighbor_selected(grid: &[[bool; 5]; 6], tile_x: i32, tile_y: i32) -> bool {
@@ -309,7 +309,7 @@ fn is_direct_neighbor_selected(grid: &[[bool; 5]; 6], tile_x: i32, tile_y: i32) 
         return true;
     }
 
-    return false;
+    false
 }
 
 fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], selection_grid: &[[bool; 5]; 6]) {
@@ -325,7 +325,7 @@ fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], selection_grid: &[[b
             if *item {
                 if selection_count == 0 {
                     selection1 = (x, y);
-                    selection_count = selection_count + 1;
+                    selection_count += 1;
                 } else {
                     selection2 = (x, y);
                 }
@@ -350,8 +350,8 @@ fn try_find_non_empty_group(row: &[ItemType], search_start: usize) -> Option<(i3
         let mut match_counter = 1;
         let group_match_type = *item;
 
-        for x in (start_index + 1)..row.len() {
-            if row[x] == group_match_type {
+        for item in row.iter().skip(start_index + 1) {
+            if *item == group_match_type {
                 match_counter += 1;
             } else {
                 break;
