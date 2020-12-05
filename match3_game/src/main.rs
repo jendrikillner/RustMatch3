@@ -25,7 +25,7 @@ struct Float2 {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 struct Int2 {
     x: i32,
     y: i32,

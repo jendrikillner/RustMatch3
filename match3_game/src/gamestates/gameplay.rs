@@ -118,7 +118,7 @@ pub enum GameState {
     // in this mode the game wait for the user to select two tiles
     WaitingForSelection1,
 
-    WaitingForSelection2,
+    WaitingForSelection2(WaitingForSelection2Data),
 
     // this triggers animations
     // updates the grid if appropriate
@@ -472,15 +472,36 @@ pub fn update_gameplay_state(
                 },
             );
 
-            if let Some(id) = new_selected_field {
+            if let Some(selected_field_id) = new_selected_field {
                 // the user selected a tile
                 // move to the next state
-                frame_data.state = GameState::WaitingForSelection2;
+                frame_data.state = GameState::WaitingForSelection2(WaitingForSelection2Data {
+                    SelectedTile1: selected_field_id,
+                });
             }
         }
 
-        GameState::WaitingForSelection2 => {
-		}
+        GameState::WaitingForSelection2(state) => {
+            let new_selected_field: Option<Int2> = check_for_mouse_select_field(
+                messages,
+                Int2 {
+                    x: prev_frame_data.mouse_pos_worldspace_x,
+                    y: prev_frame_data.mouse_pos_worldspace_y,
+                },
+            );
+
+            if let Some(selected_field_id) = new_selected_field {
+                if selected_field_id != state.SelectedTile1 {
+                    // user selected a second Field
+                    frame_data.state = GameState::ReactToSelection;
+
+                    frame_data.grid_selection[state.SelectedTile1.y as usize]
+                        [state.SelectedTile1.x as usize] = true;
+                    frame_data.grid_selection[selected_field_id.y as usize]
+                        [selected_field_id.x as usize] = true;
+                }
+            }
+        }
 
         GameState::ReactToSelection => {
             assert_eq!( count_selected_fields(&frame_data.grid_selection), 2, "when entering the ReactToSelection state it's expected the user selected 2 items, but {} are selected", count_selected_fields(&frame_data.grid_selection) );
