@@ -108,10 +108,17 @@ impl GameplayStateStaticData<'_> {
 }
 
 #[derive(Copy, Clone)]
+struct WaitingForSelection2Data {
+    SelectedTile1: Int2,
+}
+
+#[derive(Copy, Clone)]
 pub enum GameState {
     // the initial state of the gameflow
     // in this mode the game wait for the user to select two tiles
-    WaitingForSelection,
+    WaitingForSelection1,
+
+    WaitingForSelection2,
 
     // this triggers animations
     // updates the grid if appropriate
@@ -197,7 +204,7 @@ impl GameplayStateFrameData {
         };
 
         GameplayStateFrameData {
-            state: GameState::WaitingForSelection,
+            state: GameState::WaitingForSelection1,
             grid_selection: { [[false; 5]; 6] },
             grid_items: generate_random_layout(&mut rnd_generator),
             rnd_state: rnd_generator,
@@ -366,6 +373,81 @@ fn try_find_non_empty_group(row: &[ItemType], search_start: usize) -> Option<(i3
     None
 }
 
+fn convert_window_space_to_world_space(window_space_pos: Int2) -> Int2 {
+    // calculate which position the user clicked on
+    // mouse position is supplied in windows space
+    // and we need to convert it into game space
+    // window space origin is at the top left going down
+    // game space is is bottom-left going up
+    // so we have to adjust the y coordinate accordingly
+    Int2 {
+        x: window_space_pos.x,
+        y: 960 - window_space_pos.y,
+    }
+}
+
+fn calculate_latest_mouse_position(
+    messages: &[WindowMessages],
+    prev_mouse_pos_world_space: Int2,
+) -> Int2 {
+    let mut mouse_pos_worldspace = prev_mouse_pos_world_space;
+
+    for x in messages {
+        match x {
+            WindowMessages::MousePositionChanged(pos) => {
+                mouse_pos_worldspace =
+                    convert_window_space_to_world_space(Int2 { x: pos.x, y: pos.y });
+            }
+
+            _ => {
+                // all other window events we are not interested in
+            }
+        }
+    }
+
+    mouse_pos_worldspace
+}
+
+fn check_for_mouse_select_field(
+    messages: &[WindowMessages],
+    prev_mouse_position_worldspace: Int2,
+) -> Option<Int2> {
+    let mut mouse_pos_worldspace = prev_mouse_position_worldspace;
+
+    for x in messages {
+        match x {
+            WindowMessages::MousePositionChanged(pos) => {
+                mouse_pos_worldspace =
+                    convert_window_space_to_world_space(Int2 { x: pos.x, y: pos.y });
+            }
+
+            WindowMessages::MouseLeftButtonDown => {
+                let grid_origin_x = 45;
+                let grid_origin_y = 675 - 6 * 90;
+
+                let cursor_relative_to_grid_x = mouse_pos_worldspace.x - grid_origin_x;
+                let cursor_relative_to_grid_y = mouse_pos_worldspace.y - grid_origin_y;
+
+                let tile_id_x = cursor_relative_to_grid_x / 91;
+                let tile_id_y = 6 - (cursor_relative_to_grid_y / 91);
+
+                if tile_id_x >= 0 && tile_id_x < 5 && tile_id_y >= 0 && tile_id_y < 6 {
+                    return Some(Int2 {
+                        x: tile_id_x,
+                        y: tile_id_y,
+                    });
+                }
+            }
+
+            _ => {
+                // case we don't care
+            }
+        }
+    }
+
+    None
+}
+
 pub fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
@@ -377,55 +459,28 @@ pub fn update_gameplay_state(
     frame_data.grid_items = prev_frame_data.grid_items;
     frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
     frame_data.state = prev_frame_data.state;
-    frame_data.mouse_pos_worldspace_x = prev_frame_data.mouse_pos_worldspace_x;
-    frame_data.mouse_pos_worldspace_x = prev_frame_data.mouse_pos_worldspace_x;
+
+    // update the mouse position for all states
 
     match frame_data.state {
-        GameState::WaitingForSelection => {
-            for x in messages {
-                match x {
-                    WindowMessages::MousePositionChanged(pos) => {
-                        println!("cursor position changed: x {0}, y {1}", pos.x, pos.y);
+        GameState::WaitingForSelection1 => {
+            let new_selected_field: Option<Int2> = check_for_mouse_select_field(
+                messages,
+                Int2 {
+                    x: prev_frame_data.mouse_pos_worldspace_x,
+                    y: prev_frame_data.mouse_pos_worldspace_y,
+                },
+            );
 
-                        // calculate which position the user clicked on
-                        // mouse position is supplied in windows space
-                        // and we need to convert it into game space
-                        // window space origin is at the top left going down
-                        // game space is is bottom-left going up
-                        // so we have to adjust the y coordinate accordingly
-                        frame_data.mouse_pos_worldspace_x = pos.x;
-                        frame_data.mouse_pos_worldspace_y = 960 - pos.y;
-                    }
-
-                    WindowMessages::MouseLeftButtonDown => {
-                        let grid_origin_x = 45;
-                        let grid_origin_y = 675 - 6 * 90;
-
-                        let cursor_relative_to_grid_x =
-                            frame_data.mouse_pos_worldspace_x - grid_origin_x;
-                        let cursor_relative_to_grid_y =
-                            frame_data.mouse_pos_worldspace_y - grid_origin_y;
-
-                        let tile_id_x = cursor_relative_to_grid_x / 91;
-                        let tile_id_y = 6 - (cursor_relative_to_grid_y / 91);
-
-                        if tile_id_x >= 0 && tile_id_x < 5 && tile_id_y >= 0 && tile_id_y < 6 {
-                            frame_data.grid_selection[tile_id_y as usize][tile_id_x as usize] =
-                                true;
-                        }
-
-                        if count_selected_fields(&frame_data.grid_selection) >= 2 {
-                            frame_data.state = GameState::ReactToSelection;
-                            break;
-                        }
-                    }
-
-                    _ => {
-                        // case we don't care
-                    }
-                }
+            if let Some(id) = new_selected_field {
+                // the user selected a tile
+                // move to the next state
+                frame_data.state = GameState::WaitingForSelection2;
             }
         }
+
+        GameState::WaitingForSelection2 => {
+		}
 
         GameState::ReactToSelection => {
             assert_eq!( count_selected_fields(&frame_data.grid_selection), 2, "when entering the ReactToSelection state it's expected the user selected 2 items, but {} are selected", count_selected_fields(&frame_data.grid_selection) );
@@ -443,7 +498,7 @@ pub fn update_gameplay_state(
             } else {
                 // the user selected tiles that are not connected for a valid move
                 reset_grid(&mut frame_data.grid_selection);
-                frame_data.state = GameState::WaitingForSelection;
+                frame_data.state = GameState::WaitingForSelection1;
             }
         }
 
@@ -499,7 +554,7 @@ pub fn update_gameplay_state(
                 }
 
                 // back to selection state
-                frame_data.state = GameState::WaitingForSelection;
+                frame_data.state = GameState::WaitingForSelection1;
             } else {
                 // now all slots that we want to remove items from have been marked inside of removale_grid
                 // so now actually empty the item grid
@@ -537,20 +592,38 @@ pub fn update_gameplay_state(
                 }
             }
 
-			// now run over the grid one more time and fill the empty spots with new entries
-			for y in 0..frame_data.grid_items.len() {
+            // now run over the grid one more time and fill the empty spots with new entries
+            for y in 0..frame_data.grid_items.len() {
                 for x in 0..frame_data.grid_items[y].len() {
-					if frame_data.grid_items[y][x] == ItemType::None {
-                        frame_data.grid_items[y][x] = gen_random_item( &mut frame_data.rnd_state );
-					}
-				}
-			}
+                    if frame_data.grid_items[y][x] == ItemType::None {
+                        frame_data.grid_items[y][x] = gen_random_item(&mut frame_data.rnd_state);
+                    }
+                }
+            }
 
             // after we have done this there might be new matches been formed
             // reuse the logic of the validate state grid to check this
             frame_data.state = GameState::ValidateGrid;
         }
     }
+
+    // update mouse position for all states
+    frame_data.mouse_pos_worldspace_x = calculate_latest_mouse_position(
+        messages,
+        Int2 {
+            x: prev_frame_data.mouse_pos_worldspace_x,
+            y: prev_frame_data.mouse_pos_worldspace_y,
+        },
+    )
+    .x;
+    frame_data.mouse_pos_worldspace_y = calculate_latest_mouse_position(
+        messages,
+        Int2 {
+            x: prev_frame_data.mouse_pos_worldspace_x,
+            y: prev_frame_data.mouse_pos_worldspace_y,
+        },
+    )
+    .y;
 
     // don't need to switch game states
     UpdateBehaviourDesc {

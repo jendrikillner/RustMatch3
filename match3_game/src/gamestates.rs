@@ -47,7 +47,9 @@ pub fn execute_possible_state_transition<'a>(
     match state_transition {
         GameStateTransitionState::TransitionToNewState(x) => match x {
             GameStateType::Gameplay => {
-                game_state_stack.push(GameStateData::Gameplay(Box::new(GameplayState::new(graphics_device))));
+                game_state_stack.push(GameStateData::Gameplay(Box::new(GameplayState::new(
+                    graphics_device,
+                ))));
             }
 
             GameStateType::Pause => {
