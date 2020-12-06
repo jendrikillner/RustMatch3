@@ -387,7 +387,7 @@ fn find_connected_groups(grid_items: [[ItemType; 5]; 6]) -> [[bool; 5]; 6] {
         find_connected_item_in_row(&grid_items[y], &mut matched_items);
 
         for (x, matched_item) in matched_items.iter().enumerate() {
-            removale_grid[y][x] = *matched_item;
+            removale_grid[y][x] |= *matched_item;
         }
     }
 
@@ -405,6 +405,7 @@ fn find_connected_groups(grid_items: [[ItemType; 5]; 6]) -> [[bool; 5]; 6] {
         let mut matched_items = [false; 6];
         find_connected_item_in_row(&column, &mut matched_items);
 
+        // or the returned state values to make sure only matched items are overwritting the previous state where it hasn't been set yet
         removale_grid[0][x] |= matched_items[0];
         removale_grid[1][x] |= matched_items[1];
         removale_grid[2][x] |= matched_items[2];
