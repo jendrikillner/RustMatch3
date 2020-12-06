@@ -452,7 +452,10 @@ pub fn update_gameplay_state(
             );
 
             if let Some(selected_field_id) = new_selected_field {
-                if selected_field_id != state.selected_tile1 {
+                // if the same tile is clicked again, cancel the selection
+                if selected_field_id == state.selected_tile1 {
+                    frame_data.state = GameState::WaitingForSelection1;
+                } else {
                     // user selected a second field
                     // are the next to each other?
                     let diff_x = i32::abs(selected_field_id.x - state.selected_tile1.x);
