@@ -356,8 +356,8 @@ fn find_connected_item_in_row(item_row: &[ItemType], match_row: &mut [bool]) {
             continue;
         }
 
-        for x in (start_index + 1)..item_row.len() {
-            if item_row[x] == group_match_type {
+        for item in item_row.iter().skip(start_index + 1) {
+            if *item == group_match_type {
                 match_counter += 1;
             } else {
                 break;
@@ -365,8 +365,8 @@ fn find_connected_item_in_row(item_row: &[ItemType], match_row: &mut [bool]) {
         }
 
         if match_counter >= 3 {
-            for x in start_index..(start_index + match_counter) {
-                match_row[x] = true;
+            for item in match_row.iter_mut().skip(start_index).take(match_counter) {
+                *item = true;
             }
 
             start_index += match_counter;
@@ -386,8 +386,8 @@ fn find_connected_groups(grid_items: [[ItemType; 5]; 6]) -> [[bool; 5]; 6] {
         let mut matched_items = [false; 5];
         find_connected_item_in_row(&grid_items[y], &mut matched_items);
 
-        for x in 0..matched_items.len() {
-            removale_grid[y][x] = matched_items[x]
+        for (x, matched_item) in matched_items.iter().enumerate() {
+            removale_grid[y][x] = *matched_item;
         }
     }
 
