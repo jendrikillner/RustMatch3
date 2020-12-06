@@ -109,17 +109,17 @@ impl GameplayStateStaticData<'_> {
 
 #[derive(Copy, Clone)]
 struct WaitingForSelection2Data {
-    SelectedTile1: Int2,
+    selected_tile1: Int2,
 }
 
 #[derive(Copy, Clone)]
 struct SwapSelectedTilesData {
-    SelectedTile1: Int2,
-    SelectedTile2: Int2,
+    selected_tile1: Int2,
+    selected_tile2: Int2,
 }
 
 #[derive(Copy, Clone)]
-pub enum GameState {
+enum GameState {
     // the initial state of the gameflow
     // in this mode the game wait for the user to select the first tile
     WaitingForSelection1,
@@ -504,7 +504,7 @@ pub fn update_gameplay_state(
                 // the user selected a tile
                 // move to the next state
                 frame_data.state = GameState::WaitingForSelection2(WaitingForSelection2Data {
-                    SelectedTile1: selected_field_id,
+                    selected_tile1: selected_field_id,
                 });
             }
         }
@@ -519,17 +519,17 @@ pub fn update_gameplay_state(
             );
 
             if let Some(selected_field_id) = new_selected_field {
-                if selected_field_id != state.SelectedTile1 {
+                if selected_field_id != state.selected_tile1 {
                     // user selected a second field
                     // are the next to each other?
-                    let diff_x = i32::abs(selected_field_id.x - state.SelectedTile1.x);
-                    let diff_y = i32::abs(selected_field_id.y - state.SelectedTile1.y);
+                    let diff_x = i32::abs(selected_field_id.x - state.selected_tile1.x);
+                    let diff_y = i32::abs(selected_field_id.y - state.selected_tile1.y);
 
                     if diff_x + diff_y == 1 {
                         // user selected a fiel that has a single connection to the first tile
                         frame_data.state = GameState::SwapSelectedTiles(SwapSelectedTilesData {
-                            SelectedTile1: state.SelectedTile1,
-                            SelectedTile2: selected_field_id,
+                            selected_tile1: state.selected_tile1,
+                            selected_tile2: selected_field_id,
                         });
                     }
                 }
@@ -540,8 +540,8 @@ pub fn update_gameplay_state(
             // swap the tiles first
             swap_selected_tiles(
                 &mut frame_data.grid_items,
-                state.SelectedTile1,
-                state.SelectedTile2,
+                state.selected_tile1,
+                state.selected_tile2,
             );
 
             // now validate the grid after swapping
@@ -552,8 +552,8 @@ pub fn update_gameplay_state(
                 // swap back the tiles tiles and restore back to selection
                 swap_selected_tiles(
                     &mut frame_data.grid_items,
-                    state.SelectedTile1,
-                    state.SelectedTile2,
+                    state.selected_tile1,
+                    state.selected_tile2,
                 );
 
                 frame_data.state = GameState::WaitingForSelection1;
