@@ -277,27 +277,6 @@ fn swap_tiles(grid_items: &mut [[ItemType; 5]; 6], tile1: Int2, tile2: Int2) {
     grid_items[tile2.y as usize][tile2.x as usize] = temp;
 }
 
-fn try_find_non_empty_group(row: &[ItemType], search_start: usize) -> Option<(i32, i32)> {
-    for (start_index, item) in row.iter().skip(search_start).enumerate() {
-        let mut match_counter = 1;
-        let group_match_type = *item;
-
-        for item in row.iter().skip(start_index + 1) {
-            if *item == group_match_type {
-                match_counter += 1;
-            } else {
-                break;
-            }
-        }
-
-        if match_counter >= 3 && group_match_type != ItemType::None {
-            return Some((start_index as i32, match_counter));
-        }
-    }
-
-    None
-}
-
 fn convert_window_space_to_world_space(window_space_pos: Int2) -> Int2 {
     // calculate which position the user clicked on
     // mouse position is supplied in windows space
@@ -366,25 +345,52 @@ fn check_for_mouse_select_field(
     None
 }
 
+fn find_connected_item_in_row(item_row: &[ItemType], match_row: &mut [bool]) {
+    let mut start_index = 0;
+
+    while start_index < item_row.len() {
+        let mut match_counter = 1;
+        let group_match_type = item_row[start_index];
+
+        if group_match_type == ItemType::None {
+            continue;
+        }
+
+        for x in (start_index + 1)..item_row.len() {
+            if item_row[x] == group_match_type {
+                match_counter += 1;
+            } else {
+                break;
+            }
+        }
+
+        if match_counter >= 3 {
+            for x in start_index..(start_index + match_counter) {
+                match_row[x] = true;
+            }
+
+            start_index += match_counter;
+        } else {
+            start_index += 1;
+        }
+    }
+}
+
 fn find_connected_groups(grid_items: [[ItemType; 5]; 6]) -> [[bool; 5]; 6] {
     // this grid will be updated as we go along
     // we don't want to change the original grid in one go
     let mut removale_grid = [[false; 5]; 6];
 
-    let mut last_group_end = 0;
-
     // first check for each row if we have any 3 matching tiles
-    for (y, row) in grid_items.iter().enumerate() {
-        while let Some(group) = try_find_non_empty_group(row, last_group_end) {
-            for x in group.0..(group.0 + group.1) {
-                removale_grid[y][x as usize] = true;
-            }
+    for y in 0..6 {
+        let mut matched_items = [false; 5];
+        find_connected_item_in_row(&grid_items[y], &mut matched_items);
 
-            last_group_end = (group.0 + group.1) as usize;
+        for x in 0..matched_items.len() {
+            removale_grid[y][x] = matched_items[x]
         }
     }
 
-    // now check the coloums, for that we are transposing vectors into rows
     for x in 0..(grid_items[0].len()) {
         // build a column from left to right
         let column = [
@@ -396,15 +402,15 @@ fn find_connected_groups(grid_items: [[ItemType; 5]; 6]) -> [[bool; 5]; 6] {
             grid_items[5][x],
         ];
 
-        let mut last_group_end = 0;
+        let mut matched_items = [false; 6];
+        find_connected_item_in_row(&column, &mut matched_items);
 
-        while let Some(group) = try_find_non_empty_group(&column, last_group_end) {
-            for y in group.0..(group.0 + group.1) {
-                removale_grid[y as usize][x] = true;
-            }
-
-            last_group_end = (group.0 + group.1) as usize;
-        }
+        removale_grid[0][x] |= matched_items[0];
+        removale_grid[1][x] |= matched_items[1];
+        removale_grid[2][x] |= matched_items[2];
+        removale_grid[3][x] |= matched_items[3];
+        removale_grid[4][x] |= matched_items[4];
+        removale_grid[5][x] |= matched_items[5];
     }
 
     removale_grid
