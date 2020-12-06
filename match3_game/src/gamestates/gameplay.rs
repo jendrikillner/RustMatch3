@@ -19,6 +19,7 @@ pub struct GameplayStateStaticData<'a> {
     item_texture_heart: Texture<'a>,
     item_texture_square: Texture<'a>,
     item_texture_round: Texture<'a>,
+    item_texture_selection: Texture<'a>,
 }
 
 impl GameplayStateStaticData<'_> {
@@ -30,6 +31,9 @@ impl GameplayStateStaticData<'_> {
                 premultiplied_alpha: true,
             },
         );
+
+        let texture_white =
+            load_dds_from_file("target_data/textures/engine/white.dds", device).unwrap();
 
         let texture_bg = load_dds_from_file(
             "target_data/textures/KawaiiCookieAssetPack/gameplay_background_tall.dds",
@@ -103,6 +107,7 @@ impl GameplayStateStaticData<'_> {
             item_texture_heart,
             item_texture_square,
             item_texture_round,
+            item_texture_selection: texture_white,
         }
     }
 }
@@ -745,5 +750,37 @@ pub fn draw_gameplay_state(
 
             draw_vertices(command_list, 4);
         }
+    }
+
+    bind_pso(command_list, &static_data.game_space_quad_opaque_pso);
+    bind_texture(command_list, 0, &static_data.item_texture_selection.srv);
+
+    // draw selection overlays
+    if let GameState::WaitingForSelection2(selection_data) = frame_params.state {
+        let x_offset_in_pixels = (selection_data.selected_tile1.x * 91) as i32;
+        let y_offset_in_pixels = (selection_data.selected_tile1.y * 91) as i32;
+
+        // allocate the constants for this draw call
+        let obj_alloc = HeapAlloc::new(
+            GameSpaceQuadData {
+                color: Float4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    a: 0.5,
+                },
+                size_pixels: Int2 { x: 90, y: 90 },
+                position_bottom_left: Int2 {
+                    x: 45 + x_offset_in_pixels,
+                    y: 960 - 330 + 45 - y_offset_in_pixels,
+                },
+            },
+            gpu_heap_data,
+            gpu_heap_state,
+        );
+
+        bind_constant(command_list, 0, &obj_alloc);
+
+        draw_vertices(command_list, 4);
     }
 }
