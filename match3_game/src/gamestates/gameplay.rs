@@ -264,7 +264,7 @@ fn count_selected_fields(grid: &[[bool; 5]; 6]) -> i32 {
     count
 }
 
-fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], tile1: Int2, tile2: Int2) {
+fn swap_tiles(grid_items: &mut [[ItemType; 5]; 6], tile1: Int2, tile2: Int2) {
     assert!(tile1 != tile2);
 
     // store the item from selection 1 in a temp variable
@@ -471,7 +471,7 @@ pub fn update_gameplay_state(
 
         GameState::SwapSelectedTiles(state) => {
             // swap the tiles first
-            swap_selected_tiles(
+            swap_tiles(
                 &mut frame_data.grid_items,
                 state.selected_tile1,
                 state.selected_tile2,
@@ -483,7 +483,7 @@ pub fn update_gameplay_state(
             if count_selected_fields(&removale_grid) < 3 {
                 // no 3 connected tiles selected
                 // swap back the tiles tiles and restore back to selection
-                swap_selected_tiles(
+                swap_tiles(
                     &mut frame_data.grid_items,
                     state.selected_tile1,
                     state.selected_tile2,
@@ -528,11 +528,17 @@ pub fn update_gameplay_state(
                     let item = frame_data.grid_items[y][x];
 
                     if item == ItemType::None {
-                        // assign the item from selection 2 into the spot of selection 1
-                        frame_data.grid_items[y][x] = frame_data.grid_items[y - 1][x];
-
-                        // and store the old selection1 into the slot of selection 2
-                        frame_data.grid_items[y - 1][x] = item;
+                        swap_tiles(
+                            &mut frame_data.grid_items,
+                            Int2 {
+                                x: x as i32,
+                                y: y as i32,
+                            },
+                            Int2 {
+                                x: x as i32,
+                                y: (y - 1) as i32,
+                            },
+                        );
                     }
                 }
             }
