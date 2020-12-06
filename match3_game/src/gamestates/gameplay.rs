@@ -158,9 +158,6 @@ pub enum ItemType {
 }
 
 pub struct GameplayStateFrameData {
-    // the state of the grid
-    grid_selection: [[bool; 5]; 6],
-
     grid_items: [[ItemType; 5]; 6],
 
     mouse_pos_worldspace_x: i32,
@@ -214,7 +211,6 @@ impl GameplayStateFrameData {
 
         GameplayStateFrameData {
             state: GameState::WaitingForSelection1,
-            grid_selection: { [[false; 5]; 6] },
             grid_items: generate_random_layout(&mut rnd_generator),
             rnd_state: rnd_generator,
             mouse_pos_worldspace_x: 0,
@@ -488,7 +484,6 @@ pub fn update_gameplay_state(
     _dt: f32,
 ) -> UpdateBehaviourDesc {
     // copy the state of the previous state as starting point
-    frame_data.grid_selection = prev_frame_data.grid_selection;
     frame_data.grid_items = prev_frame_data.grid_items;
     frame_data.rnd_state.state = prev_frame_data.rnd_state.state;
     frame_data.state = prev_frame_data.state;
@@ -585,9 +580,6 @@ pub fn update_gameplay_state(
                         }
                     }
                 }
-
-                // reset the selection before transitioning to the next state
-                reset_grid(&mut frame_data.grid_selection);
 
                 frame_data.state = GameState::ArrangeTiles;
             }
@@ -740,7 +732,7 @@ pub fn draw_gameplay_state(
     bind_texture(command_list, 0, &static_data.texture_item_background.srv);
 
     // draw the grid
-    for (y, row) in frame_params.grid_selection.iter().enumerate() {
+    for (y, row) in frame_params.grid_items.iter().enumerate() {
         for (x, column) in row.iter().enumerate() {
             let x_offset_in_pixels = (x * 91) as i32;
             let y_offset_in_pixels = (y * 91) as i32;
@@ -748,20 +740,11 @@ pub fn draw_gameplay_state(
             // allocate the constants for this draw call
             let obj_alloc = HeapAlloc::new(
                 GameSpaceQuadData {
-                    color: if !column {
-                        Float4 {
-                            x: 1.0,
-                            y: 1.0,
-                            z: 1.0,
-                            a: 1.0,
-                        }
-                    } else {
-                        Float4 {
-                            x: 0.0,
-                            y: 1.0,
-                            z: 0.0,
-                            a: 1.0,
-                        }
+                    color: Float4 {
+                        x: 1.0,
+                        y: 1.0,
+                        z: 1.0,
+                        a: 1.0,
                     },
                     size_pixels: Int2 { x: 90, y: 90 },
                     position_bottom_left: Int2 {
