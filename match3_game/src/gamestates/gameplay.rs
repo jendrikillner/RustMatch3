@@ -113,18 +113,27 @@ struct WaitingForSelection2Data {
 }
 
 #[derive(Copy, Clone)]
+struct SwapSelectedTilesData {
+    SelectedTile1: Int2,
+    SelectedTile2: Int2,
+}
+
+#[derive(Copy, Clone)]
 pub enum GameState {
     // the initial state of the gameflow
-    // in this mode the game wait for the user to select two tiles
+    // in this mode the game wait for the user to select the first tile
     WaitingForSelection1,
 
+    // waiting for the user to select a second tile
     WaitingForSelection2(WaitingForSelection2Data),
 
-	// this state is executed when the user selected 2 tiles and they are changing position
-	// swap positions
-	// check if the grid has 3 matches
-	// if not, go back to WaitingForSelection1
-	// SwapSelectedTiles,
+    // user selected 2 tiles
+    // OnEnter: swap tiles
+    //	if 3+ matches are found -> RemoveMatchedTies
+    //  if not
+    //    swap tiles back
+    //                          -> WaitingForSelection1
+    SwapSelectedTiles(SwapSelectedTilesData),
 
     // this will check the new grid state, if any tiles are in a position to be removed
     // remove them and add the necessary points
@@ -319,9 +328,7 @@ fn is_direct_neighbor_selected(grid: &[[bool; 5]; 6], tile_x: i32, tile_y: i32) 
     false
 }
 
-fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], tile1 : Int2, tile2 : Int2 ) {
-
-
+fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], tile1: Int2, tile2: Int2) {
     assert!(tile1 != tile2);
 
     // store the item from selection 1 in a temp variable
@@ -430,6 +437,50 @@ fn check_for_mouse_select_field(
     None
 }
 
+fn find_connected_groups(grid_items: [[ItemType; 5]; 6]) -> [[bool; 5]; 6] {
+    // this grid will be updated as we go along
+    // we don't want to change the original grid in one go
+    let mut removale_grid = [[false; 5]; 6];
+
+    let mut last_group_end = 0;
+
+    // first check for each row if we have any 3 matching tiles
+    for (y, row) in grid_items.iter().enumerate() {
+        while let Some(group) = try_find_non_empty_group(row, last_group_end) {
+            for x in group.0..(group.0 + group.1) {
+                removale_grid[y][x as usize] = true;
+            }
+
+            last_group_end = (group.0 + group.1) as usize;
+        }
+    }
+
+    // now check the coloums, for that we are transposing vectors into rows
+    for x in 0..(grid_items[0].len()) {
+        // build a column from left to right
+        let column = [
+            grid_items[0][x],
+            grid_items[1][x],
+            grid_items[2][x],
+            grid_items[3][x],
+            grid_items[4][x],
+            grid_items[5][x],
+        ];
+
+        let mut last_group_end = 0;
+
+        while let Some(group) = try_find_non_empty_group(&column, last_group_end) {
+            for y in group.0..(group.0 + group.1) {
+                removale_grid[y as usize][x] = true;
+            }
+
+            last_group_end = (group.0 + group.1) as usize;
+        }
+    }
+
+    removale_grid
+}
+
 pub fn update_gameplay_state(
     prev_frame_data: &GameplayStateFrameData,
     frame_data: &mut GameplayStateFrameData,
@@ -475,71 +526,53 @@ pub fn update_gameplay_state(
             if let Some(selected_field_id) = new_selected_field {
                 if selected_field_id != state.SelectedTile1 {
                     // user selected a second field
-					// are the next to each other?
-					let diff_x = i32::abs(selected_field_id.x - state.SelectedTile1.x);
-					let diff_y = i32::abs(selected_field_id.y - state.SelectedTile1.y);
+                    // are the next to each other?
+                    let diff_x = i32::abs(selected_field_id.x - state.SelectedTile1.x);
+                    let diff_y = i32::abs(selected_field_id.y - state.SelectedTile1.y);
 
-					if diff_x + diff_y == 1 {
-						// user selected a fiel that has a single connection to the first tile
-						frame_data.state = GameState::ValidateGrid;
-
-						swap_selected_tiles(&mut frame_data.grid_items, state.SelectedTile1, selected_field_id );
-					}
+                    if diff_x + diff_y == 1 {
+                        // user selected a fiel that has a single connection to the first tile
+                        frame_data.state = GameState::SwapSelectedTiles(SwapSelectedTilesData {
+                            SelectedTile1: state.SelectedTile1,
+                            SelectedTile2: selected_field_id,
+                        });
+                    }
                 }
+            }
+        }
+
+        GameState::SwapSelectedTiles(state) => {
+            // swap the tiles first
+            swap_selected_tiles(
+                &mut frame_data.grid_items,
+                state.SelectedTile1,
+                state.SelectedTile2,
+            );
+
+            // now validate the grid after swapping
+            let removale_grid = find_connected_groups(frame_data.grid_items);
+
+            if count_selected_fields(&removale_grid) < 3 {
+                // no 3 connected tiles selected
+                // swap back the tiles tiles and restore back to selection
+                swap_selected_tiles(
+                    &mut frame_data.grid_items,
+                    state.SelectedTile1,
+                    state.SelectedTile2,
+                );
+
+                frame_data.state = GameState::WaitingForSelection1;
+            } else {
+                frame_data.state = GameState::ValidateGrid;
             }
         }
 
         GameState::ValidateGrid => {
             // check if there are any 3 matching tiles next to each
 
-            // this grid will be updated as we go along
-            // we don't want to change the original grid in one go
-            let mut removale_grid = [[false; 5]; 6];
-
-            let mut last_group_end = 0;
-
-            // first check for each row if we have any 3 matching tiles
-            for (y, row) in frame_data.grid_items.iter_mut().enumerate() {
-                while let Some(group) = try_find_non_empty_group(row, last_group_end) {
-                    for x in group.0..(group.0 + group.1) {
-                        removale_grid[y][x as usize] = true;
-                    }
-
-                    last_group_end = (group.0 + group.1) as usize;
-                }
-            }
-
-            // now check the coloums, for that we are transposing vectors into rows
-            for x in 0..(frame_data.grid_items[0].len()) {
-                // build a column from left to right
-                let column = [
-                    frame_data.grid_items[0][x],
-                    frame_data.grid_items[1][x],
-                    frame_data.grid_items[2][x],
-                    frame_data.grid_items[3][x],
-                    frame_data.grid_items[4][x],
-                    frame_data.grid_items[5][x],
-                ];
-
-                let mut last_group_end = 0;
-
-                while let Some(group) = try_find_non_empty_group(&column, last_group_end) {
-                    for y in group.0..(group.0 + group.1) {
-                        removale_grid[y as usize][x] = true;
-                    }
-
-                    last_group_end = (group.0 + group.1) as usize;
-                }
-            }
+            let removale_grid = find_connected_groups(frame_data.grid_items);
 
             if count_selected_fields(&removale_grid) < 3 {
-                if count_selected_fields(&frame_data.grid_selection) == 2 {
-                    // swap the tile back, the user did not match 3 tiles
-                    // swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
-
-                    reset_grid(&mut frame_data.grid_selection);
-                }
-
                 // back to selection state
                 frame_data.state = GameState::WaitingForSelection1;
             } else {
