@@ -120,11 +120,11 @@ pub enum GameState {
 
     WaitingForSelection2(WaitingForSelection2Data),
 
-    // this triggers animations
-    // updates the grid if appropriate
-    // update move counter
-    // ...
-    ReactToSelection,
+	// this state is executed when the user selected 2 tiles and they are changing position
+	// swap positions
+	// check if the grid has 3 matches
+	// if not, go back to WaitingForSelection1
+	// SwapSelectedTiles,
 
     // this will check the new grid state, if any tiles are in a position to be removed
     // remove them and add the necessary points
@@ -319,37 +319,19 @@ fn is_direct_neighbor_selected(grid: &[[bool; 5]; 6], tile_x: i32, tile_y: i32) 
     false
 }
 
-fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], selection_grid: &[[bool; 5]; 6]) {
-    let mut selection_count = 0;
-    let mut selection1 = (0, 0);
-    let mut selection2 = (0, 0);
+fn swap_selected_tiles(grid_items: &mut [[ItemType; 5]; 6], tile1 : Int2, tile2 : Int2 ) {
 
-    assert_eq!(count_selected_fields(selection_grid), 2);
 
-    // first find the two selected items
-    for (y, row) in selection_grid.iter().enumerate() {
-        for (x, item) in row.iter().enumerate() {
-            if *item {
-                if selection_count == 0 {
-                    selection1 = (x, y);
-                    selection_count += 1;
-                } else {
-                    selection2 = (x, y);
-                }
-            }
-        }
-    }
-
-    // once we have the two selected tiles, we can swap
+    assert!(tile1 != tile2);
 
     // store the item from selection 1 in a temp variable
-    let temp = grid_items[selection1.1][selection1.0];
+    let temp = grid_items[tile1.y as usize][tile1.x as usize];
 
     // assign the item from selection 2 into the spot of selection 1
-    grid_items[selection1.1][selection1.0] = grid_items[selection2.1][selection2.0];
+    grid_items[tile1.y as usize][tile1.x as usize] = grid_items[tile2.y as usize][tile2.x as usize];
 
     // and store the old selection1 into the slot of selection 2
-    grid_items[selection2.1][selection2.0] = temp;
+    grid_items[tile2.y as usize][tile2.x as usize] = temp;
 }
 
 fn try_find_non_empty_group(row: &[ItemType], search_start: usize) -> Option<(i32, i32)> {
@@ -492,34 +474,18 @@ pub fn update_gameplay_state(
 
             if let Some(selected_field_id) = new_selected_field {
                 if selected_field_id != state.SelectedTile1 {
-                    // user selected a second Field
-                    frame_data.state = GameState::ReactToSelection;
+                    // user selected a second field
+					// are the next to each other?
+					let diff_x = i32::abs(selected_field_id.x - state.SelectedTile1.x);
+					let diff_y = i32::abs(selected_field_id.y - state.SelectedTile1.y);
 
-                    frame_data.grid_selection[state.SelectedTile1.y as usize]
-                        [state.SelectedTile1.x as usize] = true;
-                    frame_data.grid_selection[selected_field_id.y as usize]
-                        [selected_field_id.x as usize] = true;
+					if diff_x + diff_y == 1 {
+						// user selected a fiel that has a single connection to the first tile
+						frame_data.state = GameState::ValidateGrid;
+
+						swap_selected_tiles(&mut frame_data.grid_items, state.SelectedTile1, selected_field_id );
+					}
                 }
-            }
-        }
-
-        GameState::ReactToSelection => {
-            assert_eq!( count_selected_fields(&frame_data.grid_selection), 2, "when entering the ReactToSelection state it's expected the user selected 2 items, but {} are selected", count_selected_fields(&frame_data.grid_selection) );
-
-            // first, verify if the two selected items are next to each other
-            let (tile_x, tile_y) = find_first_selected_tile_coordinate(&frame_data.grid_selection);
-
-            // now check if any of the direct niegbor tiles are selected
-            if is_direct_neighbor_selected(&frame_data.grid_selection, tile_x, tile_y) {
-                // swap the tile so that the grid represents the state after the requested transition
-                swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
-
-                // switch to the next state which is responsible for checking if the user matched 3 items
-                frame_data.state = GameState::ValidateGrid;
-            } else {
-                // the user selected tiles that are not connected for a valid move
-                reset_grid(&mut frame_data.grid_selection);
-                frame_data.state = GameState::WaitingForSelection1;
             }
         }
 
@@ -569,7 +535,7 @@ pub fn update_gameplay_state(
             if count_selected_fields(&removale_grid) < 3 {
                 if count_selected_fields(&frame_data.grid_selection) == 2 {
                     // swap the tile back, the user did not match 3 tiles
-                    swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
+                    // swap_selected_tiles(&mut frame_data.grid_items, &frame_data.grid_selection);
 
                     reset_grid(&mut frame_data.grid_selection);
                 }
