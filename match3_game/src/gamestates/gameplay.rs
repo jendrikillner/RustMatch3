@@ -313,15 +313,8 @@ fn calculate_latest_mouse_position(
     let mut mouse_pos_worldspace = prev_mouse_pos_world_space;
 
     for x in messages {
-        match x {
-            WindowMessages::MousePositionChanged(pos) => {
-                mouse_pos_worldspace =
-                    convert_window_space_to_world_space(Int2 { x: pos.x, y: pos.y });
-            }
-
-            _ => {
-                // all other window events we are not interested in
-            }
+        if let WindowMessages::MousePositionChanged(pos) = x {
+            mouse_pos_worldspace = convert_window_space_to_world_space(Int2 { x: pos.x, y: pos.y });
         }
     }
 
@@ -668,7 +661,7 @@ pub fn draw_gameplay_state(
 
     // draw the grid
     for (y, row) in frame_params.grid_items.iter().enumerate() {
-        for (x, column) in row.iter().enumerate() {
+        for (x, _column) in row.iter().enumerate() {
             let x_offset_in_pixels = (x * 91) as i32;
             let y_offset_in_pixels = (y * 91) as i32;
 
